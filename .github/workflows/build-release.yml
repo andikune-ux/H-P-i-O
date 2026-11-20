@@ -49,7 +49,9 @@ jobs:
       - uses: android-actions/setup-android@v3
       - uses: gradle/actions/setup-gradle@v4
       - name: Run Unit Tests & Lint
-        run: ./gradlew testDebugUnitTest lintDebug --no-daemon
+        run: |
+          chmod +x gradlew
+          ./gradlew testDebugUnitTest lintDebug --no-daemon
       - name: Build Debug APK
         run: ./gradlew assembleDebug --no-daemon
 
@@ -110,6 +112,7 @@ jobs:
           ANDIKUNE_KEY_ALIAS: ${{ secrets.ANDIKUNE_KEY_ALIAS }}
           ANDIKUNE_KEY_PASSWORD: ${{ secrets.ANDIKUNE_KEY_PASSWORD }}
         run: |
+          chmod +x gradlew
           ./gradlew assembleRelease --no-daemon \
             -PversionName="${{ steps.version.outputs.version_name }}" \
             -PversionCode="${{ steps.version.outputs.version_code }}"

@@ -38,10 +38,5 @@ Buka `Settings → Secrets and variables → Actions → New repository secret` 
 - `ANDIKUNE_KEY_ALIAS` (nilai: `andikune`)
 - `ANDIKUNE_KEY_PASSWORD`
 
-## 4. Gradle Wrapper Saat Ekspor ke GitHub
-Lingkungan Google AI Studio menggunakan sistem `gradle` container sehingga file `gradlew` / `gradle-wrapper.jar` tidak dibundel secara default oleh template. Saat mengekspor ke repository GitHub `andikune-ux/H-P-i-O`, jalankan satu kali secara lokal:
-
-```bash
-gradle wrapper --gradle-version 8.13
-git add gradlew gradlew.bat gradle/wrapper/gradle-wrapper.jar
-```
+## 4. Gradle Wrapper
+`gradlew`, `gradlew.bat`, dan `gradle/wrapper/gradle-wrapper.jar` (Gradle `9.3.1`) sudah disertakan di proyek agar GitHub Actions dapat langsung membangun APK tanpa setup manual tambahan. Pastikan izin eksekusi `gradlew` tetap aktif (`git update-index --chmod=+x gradlew` bila diperlukan).
