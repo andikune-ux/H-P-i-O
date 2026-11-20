@@ -80,7 +80,8 @@ fun HeroGlassClockHeader(
         SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(nowMillis))
     }
     val dateStr = remember(nowMillis) {
-        SimpleDateFormat("EEEE, d MMMM yyyy", Locale("id", "ID")).format(Date(nowMillis))
+        val idLocale = Locale.Builder().setLanguage("id").setRegion("ID").build()
+        SimpleDateFormat("EEEE, d MMMM yyyy", idLocale).format(Date(nowMillis))
     }
 
     LiquidGlassSurface(

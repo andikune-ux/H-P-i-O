@@ -11,13 +11,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.AddToHomeScreen
 import androidx.compose.material.icons.rounded.CreateNewFolder
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Dock
 import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.OpenInNew
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -72,7 +72,7 @@ fun AppActionSheet(
             Spacer(modifier = Modifier.height(8.dp))
 
             SheetActionRow(
-                icon = Icons.Rounded.OpenInNew,
+                icon = Icons.AutoMirrored.Rounded.OpenInNew,
                 label = "Buka Aplikasi",
                 testTag = "action_launch_app",
                 onClick = onLaunch

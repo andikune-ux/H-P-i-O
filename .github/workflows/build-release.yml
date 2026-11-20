@@ -23,7 +23,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Verify Package Identity (No com.example)
         run: |
-          if grep -rn --exclude-dir=.git --exclude-dir=.gradle --exclude-dir=build --exclude-dir=docs --exclude=AGENTS.md --exclude=build-release.yml "com\.example" .; then
+          if grep -rn --exclude-dir=.git --exclude-dir=.gradle --exclude-dir=build --exclude-dir=.build-outputs --exclude-dir=.aistudio --exclude-dir=docs --exclude=AGENTS.md --exclude=build-release.yml "com\.example" .; then
             echo "::error::Found forbidden template package reference com.example"
             exit 1
           fi
@@ -48,15 +48,31 @@ jobs:
           java-version: '17'
       - uses: android-actions/setup-android@v3
       - uses: gradle/actions/setup-gradle@v4
+      - name: Restore Ephemeral Debug Keystore for CI
+        run: |
+          if [[ -f debug.keystore.base64 ]]; then
+            tr -d '\r\n' < debug.keystore.base64 | base64 --decode > debug.keystore
+          else
+            keytool -genkeypair -noprompt \
+              -keystore debug.keystore \
+              -alias androiddebugkey \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass android -keypass android \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+          keytool -list -keystore debug.keystore -storepass android -alias androiddebugkey >/dev/null
       - name: Run Unit Tests & Lint
         run: |
           chmod +x gradlew
           ./gradlew testDebugUnitTest lintDebug --no-daemon
       - name: Build Debug APK
         run: ./gradlew assembleDebug --no-daemon
+      - name: Cleanup Ephemeral Debug Keystore
+        if: always()
+        run: rm -f debug.keystore
 
   build-signed-release:
-    name: Build & Verify Signed Release APK
+    name: Build & Verify Consistent Signed Release APK
     runs-on: ubuntu-latest
     needs: [ validate-repository ]
     if: github.event_name != 'pull_request'
@@ -64,6 +80,7 @@ jobs:
       tag: ${{ steps.version.outputs.tag }}
       version_name: ${{ steps.version.outputs.version_name }}
       version_code: ${{ steps.version.outputs.version_code }}
+      cert_sha256: ${{ steps.sign_and_verify.outputs.cert_sha256 }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -87,55 +104,112 @@ jobs:
         run: |
           for name in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
             if [[ -z "${!name}" ]]; then
-              echo "::error::Required signing secret is missing: $name"
+              echo "::error::Required signing secret is missing: ANDIKUNE_${name}. Configure all 4 ANDIKUNE_* secrets in Repository Settings -> Secrets and variables -> Actions."
               exit 1
             fi
           done
-      - name: Decode Temporary Keystore & Validate Alias
+      - name: Decode Andik Une Keystore & Validate Alias
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDIKUNE_KEYSTORE_BASE64 }}
           ANDIKUNE_KEYSTORE_PASSWORD: ${{ secrets.ANDIKUNE_KEYSTORE_PASSWORD }}
           ANDIKUNE_KEY_ALIAS: ${{ secrets.ANDIKUNE_KEY_ALIAS }}
         run: |
           umask 077
-          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/andikune.keystore"
+          printf '%s' "$KEYSTORE_BASE64" | tr -d '\r\n' | base64 --decode > "$RUNNER_TEMP/andikune.keystore"
           keytool -list -keystore "$RUNNER_TEMP/andikune.keystore" \
             -storepass:env ANDIKUNE_KEYSTORE_PASSWORD \
             -alias "$ANDIKUNE_KEY_ALIAS" >/dev/null
+      - name: Prepare Ephemeral Gradle Packaging Keystore
+        run: |
+          umask 077
+          keytool -genkeypair -noprompt \
+            -keystore "$RUNNER_TEMP/ci-staging.jks" \
+            -alias upload \
+            -keyalg RSA -keysize 2048 -validity 1 \
+            -storepass ci_staging_pass -keypass ci_staging_pass \
+            -dname "CN=CI Packaging Staging"
       - name: Build Release APK
         env:
-          KEYSTORE_PATH: ${{ runner.temp }}/andikune.keystore
-          STORE_PASSWORD: ${{ secrets.ANDIKUNE_KEYSTORE_PASSWORD }}
-          KEY_PASSWORD: ${{ secrets.ANDIKUNE_KEY_PASSWORD }}
-          ANDIKUNE_KEYSTORE_PATH: ${{ runner.temp }}/andikune.keystore
-          ANDIKUNE_KEYSTORE_PASSWORD: ${{ secrets.ANDIKUNE_KEYSTORE_PASSWORD }}
-          ANDIKUNE_KEY_ALIAS: ${{ secrets.ANDIKUNE_KEY_ALIAS }}
-          ANDIKUNE_KEY_PASSWORD: ${{ secrets.ANDIKUNE_KEY_PASSWORD }}
+          KEYSTORE_PATH: ${{ runner.temp }}/ci-staging.jks
+          STORE_PASSWORD: ci_staging_pass
+          KEY_PASSWORD: ci_staging_pass
         run: |
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon \
             -PversionName="${{ steps.version.outputs.version_name }}" \
             -PversionCode="${{ steps.version.outputs.version_code }}"
-      - name: Sign & Verify Release APK with Andik Une Identity
+      - name: Sign with Consistent Andik Une Keystore & Verify Certificate
+        id: sign_and_verify
         env:
           ANDIKUNE_KEYSTORE_PATH: ${{ runner.temp }}/andikune.keystore
           ANDIKUNE_KEYSTORE_PASSWORD: ${{ secrets.ANDIKUNE_KEYSTORE_PASSWORD }}
           ANDIKUNE_KEY_ALIAS: ${{ secrets.ANDIKUNE_KEY_ALIAS }}
           ANDIKUNE_KEY_PASSWORD: ${{ secrets.ANDIKUNE_KEY_PASSWORD }}
+          EXPECTED_CERT_SHA256: ${{ secrets.ANDIKUNE_CERT_SHA256 }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           BUILD_TOOLS_DIR="$(find "$ANDROID_HOME/build-tools" -maxdepth 1 -mindepth 1 | sort -V | tail -n 1)"
-          APK_IN="$(ls app/build/outputs/apk/release/*.apk | head -n 1)"
+          APK_IN="$(find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' | head -n 1)"
+          if [[ -z "$APK_IN" || ! -f "$APK_IN" ]]; then
+            echo "::error::Release APK output not found after assembleRelease"
+            exit 1
+          fi
           APK_OUT="app/build/outputs/apk/release/hpio-${{ steps.version.outputs.tag }}-release.apk"
           "$BUILD_TOOLS_DIR/apksigner" sign \
             --ks "$ANDIKUNE_KEYSTORE_PATH" \
             --ks-key-alias "$ANDIKUNE_KEY_ALIAS" \
             --ks-pass env:ANDIKUNE_KEYSTORE_PASSWORD \
             --key-pass env:ANDIKUNE_KEY_PASSWORD \
+            --v1-signing-enabled true \
+            --v2-signing-enabled true \
+            --v3-signing-enabled true \
             --out "$APK_OUT" \
             "$APK_IN"
-          "$BUILD_TOOLS_DIR/apksigner" verify --print-certs "$APK_OUT"
+          VERIFY_OUT="$("$BUILD_TOOLS_DIR/apksigner" verify --print-certs --verbose "$APK_OUT")"
+          echo "$VERIFY_OUT"
+          SIGNER_COUNT="$(printf '%s\n' "$VERIFY_OUT" | awk '/Number of signers:/ {print $4}')"
+          if [[ "$SIGNER_COUNT" != "1" ]]; then
+            echo "::error::Expected exactly 1 APK signer, got: $SIGNER_COUNT"
+            exit 1
+          fi
+          CERT_SHA256="$(printf '%s\n' "$VERIFY_OUT" | awk '/Signer #1 certificate SHA-256 digest:/ {print tolower($6)}')"
+          if [[ -z "$CERT_SHA256" ]]; then
+            echo "::error::Could not extract Signer #1 SHA-256 digest"
+            exit 1
+          fi
+          if [[ -n "$EXPECTED_CERT_SHA256" ]]; then
+            NORM_EXPECTED="$(printf '%s' "$EXPECTED_CERT_SHA256" | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')"
+            if [[ "$CERT_SHA256" != "$NORM_EXPECTED" ]]; then
+              echo "::error::Signing certificate mismatch! Expected $NORM_EXPECTED, got $CERT_SHA256. Aborting to prevent update conflict."
+              exit 1
+            fi
+          fi
+          # Verify consistency with the latest published GitHub Release (if one already exists)
+          LATEST_TAG="$(gh release list --limit 1 --json tagName --jq '.[0].tagName' 2>/dev/null || true)"
+          if [[ -n "$LATEST_TAG" && "$LATEST_TAG" != "${{ steps.version.outputs.tag }}" ]]; then
+            mkdir -p "$RUNNER_TEMP/prev_release"
+            if gh release download "$LATEST_TAG" --pattern "*.cert-sha256" --dir "$RUNNER_TEMP/prev_release" 2>/dev/null; then
+              PREV_CERT="$(cat "$RUNNER_TEMP/prev_release/"*.cert-sha256 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')"
+              if [[ -n "$PREV_CERT" && "$PREV_CERT" != "$CERT_SHA256" ]]; then
+                echo "::error::Keystore inconsistency detected! Release $LATEST_TAG used cert $PREV_CERT, current build used $CERT_SHA256. Aborting to protect installed app updates."
+                exit 1
+              fi
+            elif gh release download "$LATEST_TAG" --pattern "*.apk" --dir "$RUNNER_TEMP/prev_release" 2>/dev/null; then
+              PREV_APK="$(find "$RUNNER_TEMP/prev_release" -name '*.apk' | head -n 1)"
+              if [[ -n "$PREV_APK" ]]; then
+                PREV_CERT="$("$BUILD_TOOLS_DIR/apksigner" verify --print-certs "$PREV_APK" | awk '/Signer #1 certificate SHA-256 digest:/ {print tolower($6)}')"
+                if [[ -n "$PREV_CERT" && "$PREV_CERT" != "$CERT_SHA256" ]]; then
+                  echo "::error::Keystore inconsistency detected against $LATEST_TAG ($PREV_CERT vs $CERT_SHA256). Aborting."
+                  exit 1
+                fi
+              fi
+            fi
+            rm -rf "$RUNNER_TEMP/prev_release"
+          fi
           "$BUILD_TOOLS_DIR/aapt2" dump badging "$APK_OUT" | grep -E "package: name='dev.andikune.launcherhpio'"
           sha256sum "$APK_OUT" > "${APK_OUT}.sha256"
+          printf '%s\n' "$CERT_SHA256" > "${APK_OUT}.cert-sha256"
+          echo "cert_sha256=$CERT_SHA256" >> "$GITHUB_OUTPUT"
       - name: Upload Verified Release APK Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -143,11 +217,12 @@ jobs:
           path: |
             app/build/outputs/apk/release/hpio-${{ steps.version.outputs.tag }}-release.apk
             app/build/outputs/apk/release/hpio-${{ steps.version.outputs.tag }}-release.apk.sha256
+            app/build/outputs/apk/release/hpio-${{ steps.version.outputs.tag }}-release.apk.cert-sha256
           if-no-files-found: error
           retention-days: 5
-      - name: Remove Temporary Keystore
+      - name: Remove Temporary Keystores
         if: always()
-        run: rm -f "$RUNNER_TEMP/andikune.keystore"
+        run: rm -f "$RUNNER_TEMP/andikune.keystore" "$RUNNER_TEMP/ci-staging.jks"
 
   publish-release:
     name: Publish GitHub Release
@@ -179,11 +254,13 @@ jobs:
           RELEASE_TAG: ${{ needs.build-signed-release.outputs.tag }}
           VERSION_NAME: ${{ needs.build-signed-release.outputs.version_name }}
           VERSION_CODE: ${{ needs.build-signed-release.outputs.version_code }}
+          CERT_SHA256: ${{ needs.build-signed-release.outputs.cert_sha256 }}
         run: |
           SHA256_VAL="$(cut -d' ' -f1 release-assets/*.sha256)"
-          gh release create "$RELEASE_TAG" release-assets/*.apk release-assets/*.sha256 \
+          NOTES_BODY="$(printf 'Rilis resmi H P i O v%s (versionCode: %s)\nCommit: %s\nAPK SHA-256: %s\nSigning Cert SHA-256: %s' "$VERSION_NAME" "$VERSION_CODE" "$GITHUB_SHA" "$SHA256_VAL" "$CERT_SHA256")"
+          gh release create "$RELEASE_TAG" release-assets/*.apk release-assets/*.sha256 release-assets/*.cert-sha256 \
             --title "H P i O $RELEASE_TAG" \
-            --notes "Rilis resmi H P i O v${VERSION_NAME} (versionCode: ${VERSION_CODE})\nCommit: ${GITHUB_SHA}\nSHA-256 APK: ${SHA256_VAL}"
+            --notes "$NOTES_BODY"
 
   cleanup-artifacts:
     name: Retain Latest 3 Workflow Artifacts

@@ -23,6 +23,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.BrightnessHigh
 import androidx.compose.material.icons.rounded.Close
@@ -32,7 +33,6 @@ import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Wifi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -224,7 +224,7 @@ fun ControlCenterOverlay(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            imageVector = Icons.Rounded.VolumeUp,
+                            imageVector = Icons.AutoMirrored.Rounded.VolumeUp,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary
                         )
