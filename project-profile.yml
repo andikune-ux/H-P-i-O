@@ -1,0 +1,40 @@
+project:
+  name: "H P i O"
+  type: "android"
+  owner: "Andik Une"
+  repository: "andikune-ux/H-P-i-O"
+  application_id: "dev.andikune.launcherhpio"
+  rulebook_source: "https://github.com/andikune-ux/ai-rulebook"
+  rulebook_commit_sha: "4133a27721a40ab356ac46f0525c450cb63c5f7c"
+  description: "Hybrid OS + Liquid Glass Native Android Home Launcher"
+
+stack:
+  languages: ["Kotlin"]
+  frameworks: ["Jetpack Compose", "Material 3", "Android SDK"]
+  build_system: "Gradle Kotlin DSL"
+  min_sdk: 24
+  target_sdk: 36
+  compile_sdk: 36
+
+targets:
+  platforms: ["android"]
+  environments: ["development", "production"]
+
+quality:
+  test_commands: ["gradle :app:testDebugUnitTest"]
+  lint_commands: ["gradle :app:lintDebug"]
+  build_commands: ["gradle :app:assembleDebug", "gradle :app:assembleRelease"]
+
+security:
+  data_sensitivity: "moderate"
+  authentication: false
+  handles_secrets: false
+  production_access: false
+  signing_identity: "CN=Andik Une, O=Andik Une, alias=andikune"
+
+policy:
+  approval_mode: "risk-based"
+  protected_paths:
+    - "app/build.gradle.kts"
+    - ".github/workflows/build-release.yml"
+    - "AGENTS.md"

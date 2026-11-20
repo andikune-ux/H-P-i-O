@@ -1,0 +1,196 @@
+name: H P i O — Build, Verify, Sign & Release
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: hpio-android-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate-repository:
+    name: Validate Identity & Security Hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Package Identity (No com.example)
+        run: |
+          if grep -rn --exclude-dir=.git --exclude-dir=.gradle --exclude-dir=build --exclude-dir=docs --exclude=AGENTS.md --exclude=build-release.yml "com\.example" .; then
+            echo "::error::Found forbidden template package reference com.example"
+            exit 1
+          fi
+          grep -q 'namespace = "dev.andikune.launcherhpio"' app/build.gradle.kts
+          grep -q 'applicationId = "dev.andikune.launcherhpio"' app/build.gradle.kts
+      - name: Verify No Committed Keystore or Secrets
+        run: |
+          if find . -maxdepth 4 \( -name "*.jks" -o -name "*.keystore" -o -name "*.p12" \) ! -name "debug.keystore" | grep -q .; then
+            echo "::error::Committed keystore file detected in repository"
+            exit 1
+          fi
+
+  test-and-lint:
+    name: Unit Tests, Robolectric & Android Lint
+    runs-on: ubuntu-latest
+    needs: [ validate-repository ]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Run Unit Tests & Lint
+        run: ./gradlew testDebugUnitTest lintDebug --no-daemon
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --no-daemon
+
+  build-signed-release:
+    name: Build & Verify Signed Release APK
+    runs-on: ubuntu-latest
+    needs: [ validate-repository ]
+    if: github.event_name != 'pull_request'
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      version_name: ${{ steps.version.outputs.version_name }}
+      version_code: ${{ steps.version.outputs.version_code }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Generate H P i O Version
+        id: version
+        run: |
+          chmod +x scripts/generate-version.sh
+          ./scripts/generate-version.sh
+      - name: Check Andik Une Signing Secrets
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDIKUNE_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDIKUNE_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDIKUNE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDIKUNE_KEY_PASSWORD }}
+        run: |
+          for name in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Required signing secret is missing: $name"
+              exit 1
+            fi
+          done
+      - name: Decode Temporary Keystore & Validate Alias
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDIKUNE_KEYSTORE_BASE64 }}
+          ANDIKUNE_KEYSTORE_PASSWORD: ${{ secrets.ANDIKUNE_KEYSTORE_PASSWORD }}
+          ANDIKUNE_KEY_ALIAS: ${{ secrets.ANDIKUNE_KEY_ALIAS }}
+        run: |
+          umask 077
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/andikune.keystore"
+          keytool -list -keystore "$RUNNER_TEMP/andikune.keystore" \
+            -storepass:env ANDIKUNE_KEYSTORE_PASSWORD \
+            -alias "$ANDIKUNE_KEY_ALIAS" >/dev/null
+      - name: Build Release APK
+        env:
+          KEYSTORE_PATH: ${{ runner.temp }}/andikune.keystore
+          STORE_PASSWORD: ${{ secrets.ANDIKUNE_KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.ANDIKUNE_KEY_PASSWORD }}
+          ANDIKUNE_KEYSTORE_PATH: ${{ runner.temp }}/andikune.keystore
+          ANDIKUNE_KEYSTORE_PASSWORD: ${{ secrets.ANDIKUNE_KEYSTORE_PASSWORD }}
+          ANDIKUNE_KEY_ALIAS: ${{ secrets.ANDIKUNE_KEY_ALIAS }}
+          ANDIKUNE_KEY_PASSWORD: ${{ secrets.ANDIKUNE_KEY_PASSWORD }}
+        run: |
+          ./gradlew assembleRelease --no-daemon \
+            -PversionName="${{ steps.version.outputs.version_name }}" \
+            -PversionCode="${{ steps.version.outputs.version_code }}"
+      - name: Sign & Verify Release APK with Andik Une Identity
+        env:
+          ANDIKUNE_KEYSTORE_PATH: ${{ runner.temp }}/andikune.keystore
+          ANDIKUNE_KEYSTORE_PASSWORD: ${{ secrets.ANDIKUNE_KEYSTORE_PASSWORD }}
+          ANDIKUNE_KEY_ALIAS: ${{ secrets.ANDIKUNE_KEY_ALIAS }}
+          ANDIKUNE_KEY_PASSWORD: ${{ secrets.ANDIKUNE_KEY_PASSWORD }}
+        run: |
+          BUILD_TOOLS_DIR="$(find "$ANDROID_HOME/build-tools" -maxdepth 1 -mindepth 1 | sort -V | tail -n 1)"
+          APK_IN="$(ls app/build/outputs/apk/release/*.apk | head -n 1)"
+          APK_OUT="app/build/outputs/apk/release/hpio-${{ steps.version.outputs.tag }}-release.apk"
+          "$BUILD_TOOLS_DIR/apksigner" sign \
+            --ks "$ANDIKUNE_KEYSTORE_PATH" \
+            --ks-key-alias "$ANDIKUNE_KEY_ALIAS" \
+            --ks-pass env:ANDIKUNE_KEYSTORE_PASSWORD \
+            --key-pass env:ANDIKUNE_KEY_PASSWORD \
+            --out "$APK_OUT" \
+            "$APK_IN"
+          "$BUILD_TOOLS_DIR/apksigner" verify --print-certs "$APK_OUT"
+          "$BUILD_TOOLS_DIR/aapt2" dump badging "$APK_OUT" | grep -E "package: name='dev.andikune.launcherhpio'"
+          sha256sum "$APK_OUT" > "${APK_OUT}.sha256"
+      - name: Upload Verified Release APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hpio-release-${{ steps.version.outputs.tag }}
+          path: |
+            app/build/outputs/apk/release/hpio-${{ steps.version.outputs.tag }}-release.apk
+            app/build/outputs/apk/release/hpio-${{ steps.version.outputs.tag }}-release.apk.sha256
+          if-no-files-found: error
+          retention-days: 5
+      - name: Remove Temporary Keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/andikune.keystore"
+
+  publish-release:
+    name: Publish GitHub Release
+    runs-on: ubuntu-latest
+    needs: [ validate-repository, test-and-lint, build-signed-release ]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify No Duplicate Release Tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.build-signed-release.outputs.tag }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "::error::Release $RELEASE_TAG already exists. Bump version.properties before releasing."
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "::error::Git tag $RELEASE_TAG already exists."
+            exit 1
+          fi
+      - uses: actions/download-artifact@v4
+        with:
+          name: hpio-release-${{ needs.build-signed-release.outputs.tag }}
+          path: release-assets/
+      - name: Create Signed GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.build-signed-release.outputs.tag }}
+          VERSION_NAME: ${{ needs.build-signed-release.outputs.version_name }}
+          VERSION_CODE: ${{ needs.build-signed-release.outputs.version_code }}
+        run: |
+          SHA256_VAL="$(cut -d' ' -f1 release-assets/*.sha256)"
+          gh release create "$RELEASE_TAG" release-assets/*.apk release-assets/*.sha256 \
+            --title "H P i O $RELEASE_TAG" \
+            --notes "Rilis resmi H P i O v${VERSION_NAME} (versionCode: ${VERSION_CODE})\nCommit: ${GITHUB_SHA}\nSHA-256 APK: ${SHA256_VAL}"
+
+  cleanup-artifacts:
+    name: Retain Latest 3 Workflow Artifacts
+    runs-on: ubuntu-latest
+    needs: [ test-and-lint, build-signed-release, publish-release ]
+    if: always() && github.event_name != 'pull_request'
+    steps:
+      - uses: c-hive/gha-remove-artifacts@v1
+        with:
+          age: '0 days'
+          skip-recent: 3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">H P i O</string>
+    <string name="home_search_hint">Cari aplikasi, folder, atau pengaturan…</string>
+    <string name="drawer_search_hint">Cari di laci aplikasi…</string>
+    <string name="app_drawer_button_desc">Buka Laci Aplikasi</string>
+    <string name="control_center_button_desc">Buka Pusat Kontrol</string>
+    <string name="personalization_button_desc">Personalisasi &amp; Pengaturan Launcher</string>
+    <string name="crash_recovery_title">Laporan Pemulihan Crash</string>
+    <string name="crash_copy_log">Salin Log</string>
+    <string name="crash_back">Kembali</string>
+    <string name="update_available_title">Pembaruan Tersedia</string>
+    <string name="update_action_skip">Skip</string>
+    <string name="update_action_later">Nanti</string>
+    <string name="update_action_update">Update</string>
+</resources>

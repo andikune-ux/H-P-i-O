@@ -1,0 +1,6 @@
+{
+  "name": "H P i O",
+  "description": "Hybrid OS + Liquid Glass Native Android Home Launcher by Andik Une",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

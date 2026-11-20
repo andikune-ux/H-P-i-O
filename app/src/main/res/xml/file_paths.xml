@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <files-path
+        name="hpio_updates"
+        path="H P i O/Pembaruan Aplikasi/" />
+    <files-path
+        name="hpio_crash_logs"
+        path="H P i O/Log Crash/" />
+</paths>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="hpio_obsidian">#FF070B14</color>
+    <color name="hpio_cyan_prism">#FF4BE2FF</color>
+    <color name="hpio_indigo_aura">#FF7B8BFF</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+</resources>
