@@ -45,8 +45,8 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
-      - uses: android-actions/setup-android@v3
+          java-version: '21'
+      - uses: android-actions/setup-android@v4.0.4
       - uses: gradle/actions/setup-gradle@v4
       - name: Restore Ephemeral Debug Keystore for CI
         run: |
@@ -87,7 +87,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4.0.4
       - uses: gradle/actions/setup-gradle@v4
       - name: Generate H P i O Version
         id: version

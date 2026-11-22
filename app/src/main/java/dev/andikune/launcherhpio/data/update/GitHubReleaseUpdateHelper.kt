@@ -344,7 +344,7 @@ class GitHubReleaseUpdateHelper(
         }
     }
 
-    private fun verifyDownloadedApkIdentity(apkFile: File): Boolean {
+    internal fun verifyDownloadedApkIdentity(apkFile: File): Boolean {
         return try {
             val archiveInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 context.packageManager.getPackageArchiveInfo(
@@ -355,9 +355,9 @@ class GitHubReleaseUpdateHelper(
                 @Suppress("DEPRECATION")
                 context.packageManager.getPackageArchiveInfo(apkFile.absolutePath, 0)
             }
-            archiveInfo == null || archiveInfo.packageName == context.packageName
+            archiveInfo != null && archiveInfo.packageName == context.packageName
         } catch (_: Exception) {
-            true
+            false
         }
     }
 

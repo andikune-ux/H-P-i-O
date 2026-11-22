@@ -150,6 +150,18 @@ class HpioRobolectricTest {
     }
 
     @Test
+    fun updateHelper_rejectsApkWhenPackageIdentityCannotBeRead() {
+        val updater = GitHubReleaseUpdateHelper(context, AppStorageHelper(context))
+        val unreadableApk = File.createTempFile("invalid-update-", ".apk", context.cacheDir)
+        try {
+            unreadableApk.writeText("not a valid APK")
+            assertFalse(updater.verifyDownloadedApkIdentity(unreadableApk))
+        } finally {
+            unreadableApk.delete()
+        }
+    }
+
+    @Test
     fun permissionsHelper_reportsCapabilitiesWithoutCrashingWhenDeniedOrUnavailable() {
         val permHelper = PermissionCapabilityHelper(context)
         val statuses = permHelper.collectCapabilityStatuses(
