@@ -471,7 +471,7 @@ fun HomeScreen(
                         animationSpec = spring(dampingRatio = 0.52f, stiffness = 520f),
                         label = "dock_lens_elasticity"
                     )
-                    val dockShape = RoundedCornerShape(30.dp)
+                    val dockShape = RoundedCornerShape(24.dp)
 
                     Box(
                         modifier = Modifier
@@ -582,7 +582,7 @@ fun HomeScreen(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 8.dp, vertical = 9.dp),
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
                                 horizontalArrangement = Arrangement.spacedBy(2.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -600,17 +600,17 @@ fun HomeScreen(
                                             modifier = Modifier
                                                 .weight(1f)
                                                 .graphicsLayer {
-                                                    val magnification = 1f + lensInfluence * 0.22f
+                                                    val magnification = 1f + lensInfluence * 0.16f
                                                     scaleX = magnification
                                                     scaleY = magnification
-                                                    translationY = -lensInfluence * 5.dp.toPx()
+                                                    translationY = -lensInfluence * 3.5.dp.toPx()
                                                 },
                                             contentAlignment = Alignment.Center
                                         ) {
                                             GlassAppIconTile(
                                                 label = resolved?.label ?: shortcut.fallbackLabel,
                                                 appEntry = resolved,
-                                                iconSize = (prefs.iconSizePreset.iconDp - 4).dp,
+                                                iconSize = (prefs.iconSizePreset.iconDp - 8).dp,
                                                 showLabel = false,
                                                 onClick = {
                                                     onLaunchApp(
@@ -645,7 +645,7 @@ fun HomeScreen(
                                     ) {
                                         Box(
                                             modifier = Modifier
-                                                .size(50.dp)
+                                                .size(42.dp)
                                                 .clip(RoundedCornerShape(16.dp))
                                                 .background(
                                                     Brush.linearGradient(
@@ -668,7 +668,7 @@ fun HomeScreen(
                                                 imageVector = Icons.Rounded.Apps,
                                                 contentDescription = "Buka Laci Aplikasi",
                                                 tint = MaterialTheme.colorScheme.onSurface,
-                                                modifier = Modifier.size(26.dp)
+                                                modifier = Modifier.size(22.dp)
                                             )
                                         }
                                     }
@@ -697,7 +697,7 @@ fun HomeScreen(
                             }
                             val isDrawerLens = prefs.showAppDrawerButton &&
                                 dockLensSelectedIndex == dockShortcutCount
-                            val lensSize = 82.dp
+                            val lensSize = 60.dp
 
                             Box(
                                 modifier = Modifier
@@ -720,8 +720,8 @@ fun HomeScreen(
                                             ((dockLensX - smoothLensX) / 18f).coerceIn(-3f, 3f)
                                         } else 0f
                                     }
-                                    .shadow(24.dp, RoundedCornerShape(28.dp))
-                                    .clip(RoundedCornerShape(28.dp))
+                                    .shadow(16.dp, RoundedCornerShape(22.dp))
+                                    .clip(RoundedCornerShape(22.dp))
                                     .background(
                                         Brush.radialGradient(
                                             colors = listOf(
@@ -742,7 +742,7 @@ fun HomeScreen(
                                                 Color.White.copy(alpha = 0.60f)
                                             )
                                         ),
-                                        RoundedCornerShape(28.dp)
+                                        RoundedCornerShape(22.dp)
                                     ),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -750,8 +750,8 @@ fun HomeScreen(
                                 Box(
                                     Modifier
                                         .fillMaxSize()
-                                        .padding(3.dp)
-                                        .clip(RoundedCornerShape(25.dp))
+                                        .padding(2.dp)
+                                        .clip(RoundedCornerShape(20.dp))
                                         .border(
                                             0.8.dp,
                                             Brush.verticalGradient(
@@ -770,7 +770,7 @@ fun HomeScreen(
                                         contentDescription = selectedApp.label,
                                         contentScale = ContentScale.Crop,
                                         modifier = Modifier
-                                            .size(60.dp)
+                                            .size(44.dp)
                                             .graphicsLayer {
                                                 scaleX = 1.035f
                                                 scaleY = 1.035f
