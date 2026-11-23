@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -49,16 +51,23 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.text.style.TextAlign
+import kotlin.math.roundToInt
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.andikune.launcherhpio.data.launcher.LauncherWidgetHelper
@@ -441,65 +450,204 @@ fun HomeScreen(
                     }
                 }
 
-                // Floating Liquid Glass Dock & Configurable App Drawer Button
+                // Floating Liquid Glass Dock with a finger-following magnification lens.
                 if (prefs.showDock || prefs.showAppDrawerButton) {
-                    LiquidGlassSurface(
+                    val dockShortcutCount = if (prefs.showDock) uiState.dockApps.size else 0
+                    val dockItemCount = dockShortcutCount + if (prefs.showAppDrawerButton) 1 else 0
+                    var dockWidthPx by remember { mutableFloatStateOf(1f) }
+                    var dockLensX by remember { mutableFloatStateOf(-1f) }
+                    var dockLensSelectedIndex by remember { mutableIntStateOf(-1) }
+
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .testTag("home_dock_bar"),
-                        preferences = prefs,
-                        cornerRadius = 30.dp,
-                        alphaBoost = 0.12f
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            if (prefs.showDock) {
-                                uiState.dockApps.forEach { shortcut ->
-                                    val resolved = installedAppsByComponent[
-                                        "${shortcut.packageName}/${shortcut.activityName}"
-                                    ]
-                                    GlassAppIconTile(
-                                        label = resolved?.label ?: shortcut.fallbackLabel,
-                                        appEntry = resolved,
-                                        iconSize = (prefs.iconSizePreset.iconDp - 4).dp,
-                                        showLabel = false,
-                                        onClick = {
+                            .onSizeChanged { dockWidthPx = it.width.toFloat().coerceAtLeast(1f) }
+                            .pointerInput(dockItemCount, dockWidthPx) {
+                                detectDragGestures(
+                                    onDragStart = { position ->
+                                        dockLensX = position.x.coerceIn(0f, dockWidthPx)
+                                        dockLensSelectedIndex = (
+                                            dockLensX / dockWidthPx * dockItemCount
+                                        ).toInt().coerceIn(0, (dockItemCount - 1).coerceAtLeast(0))
+                                    },
+                                    onDrag = { change, dragAmount ->
+                                        change.consume()
+                                        dockLensX = (dockLensX + dragAmount.x).coerceIn(0f, dockWidthPx)
+                                        dockLensSelectedIndex = (
+                                            dockLensX / dockWidthPx * dockItemCount
+                                        ).toInt().coerceIn(0, (dockItemCount - 1).coerceAtLeast(0))
+                                    },
+                                    onDragEnd = {
+                                        val selectedIndex = dockLensSelectedIndex
+                                        if (selectedIndex in 0 until dockShortcutCount) {
+                                            val shortcut = uiState.dockApps[selectedIndex]
+                                            val resolved = installedAppsByComponent[
+                                                "${shortcut.packageName}/${shortcut.activityName}"
+                                            ]
                                             onLaunchApp(
                                                 shortcut.packageName,
                                                 shortcut.activityName,
                                                 resolved?.label ?: shortcut.fallbackLabel
                                             )
-                                        },
-                                        onLongClick = { onRemoveDockApp(shortcut.id) }
-                                    )
+                                        } else if (
+                                            prefs.showAppDrawerButton &&
+                                            selectedIndex == dockShortcutCount
+                                        ) {
+                                            onOpenDrawer()
+                                        }
+                                        dockLensX = -1f
+                                        dockLensSelectedIndex = -1
+                                    },
+                                    onDragCancel = {
+                                        dockLensX = -1f
+                                        dockLensSelectedIndex = -1
+                                    }
+                                )
+                            }
+                            .testTag("home_dock_bar")
+                    ) {
+                        LiquidGlassSurface(
+                            modifier = Modifier.fillMaxWidth(),
+                            preferences = prefs,
+                            cornerRadius = 30.dp,
+                            alphaBoost = 0.12f
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 8.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                if (prefs.showDock) {
+                                    uiState.dockApps.forEach { shortcut ->
+                                        val resolved = installedAppsByComponent[
+                                            "${shortcut.packageName}/${shortcut.activityName}"
+                                        ]
+                                        Box(
+                                            modifier = Modifier.weight(1f),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            GlassAppIconTile(
+                                                label = resolved?.label ?: shortcut.fallbackLabel,
+                                                appEntry = resolved,
+                                                iconSize = (prefs.iconSizePreset.iconDp - 4).dp,
+                                                showLabel = false,
+                                                onClick = {
+                                                    onLaunchApp(
+                                                        shortcut.packageName,
+                                                        shortcut.activityName,
+                                                        resolved?.label ?: shortcut.fallbackLabel
+                                                    )
+                                                },
+                                                onLongClick = { onRemoveDockApp(shortcut.id) }
+                                            )
+                                        }
+                                    }
+                                }
+
+                                if (prefs.showAppDrawerButton) {
+                                    Box(
+                                        modifier = Modifier.weight(1f),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(50.dp)
+                                                .clip(RoundedCornerShape(16.dp))
+                                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.22f))
+                                                .border(
+                                                    1.dp,
+                                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
+                                                    RoundedCornerShape(16.dp)
+                                                )
+                                                .clickable(onClick = onOpenDrawer)
+                                                .testTag("app_drawer_button"),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.Apps,
+                                                contentDescription = "Buka Laci Aplikasi",
+                                                tint = MaterialTheme.colorScheme.onSurface,
+                                                modifier = Modifier.size(26.dp)
+                                            )
+                                        }
+                                    }
                                 }
                             }
+                        }
 
-                            if (prefs.showAppDrawerButton) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(50.dp)
-                                        .clip(RoundedCornerShape(16.dp))
-                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.22f))
-                                        .border(
-                                            1.dp,
-                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
-                                            RoundedCornerShape(16.dp)
+                        if (dockLensX >= 0f && dockLensSelectedIndex >= 0) {
+                            val selectedShortcut = uiState.dockApps.getOrNull(dockLensSelectedIndex)
+                                .takeIf { dockLensSelectedIndex < dockShortcutCount }
+                            val selectedApp = selectedShortcut?.let { shortcut ->
+                                installedAppsByComponent[
+                                    "${shortcut.packageName}/${shortcut.activityName}"
+                                ]
+                            }
+                            val isDrawerLens = prefs.showAppDrawerButton &&
+                                dockLensSelectedIndex == dockShortcutCount
+
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.CenterStart)
+                                    .offset {
+                                        IntOffset(
+                                            dockLensX.roundToInt() - 36.dp.roundToPx(),
+                                            0
                                         )
-                                        .clickable(onClick = onOpenDrawer)
-                                        .testTag("app_drawer_button"),
-                                    contentAlignment = Alignment.Center
-                                ) {
+                                    }
+                                    .size(72.dp)
+                                    .shadow(14.dp, CircleShape)
+                                    .graphicsLayer {
+                                        scaleX = 1.08f
+                                        scaleY = 1.08f
+                                    }
+                                    .clip(CircleShape)
+                                    .background(
+                                        Brush.radialGradient(
+                                            colors = listOf(
+                                                Color.White.copy(alpha = 0.62f),
+                                                Color(0xFFB9D9FF).copy(alpha = 0.25f),
+                                                Color.White.copy(alpha = 0.12f)
+                                            )
+                                        )
+                                    )
+                                    .border(
+                                        1.25.dp,
+                                        Brush.linearGradient(
+                                            listOf(
+                                                Color.White.copy(alpha = 0.95f),
+                                                Color.White.copy(alpha = 0.24f),
+                                                Color(0xFFB8D9FF).copy(alpha = 0.72f)
+                                            )
+                                        ),
+                                        CircleShape
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (selectedApp?.icon != null) {
+                                    Image(
+                                        bitmap = selectedApp.icon,
+                                        contentDescription = selectedApp.label,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier
+                                            .size(52.dp)
+                                            .clip(RoundedCornerShape(15.dp))
+                                    )
+                                } else if (isDrawerLens) {
                                     Icon(
                                         imageVector = Icons.Rounded.Apps,
-                                        contentDescription = "Buka Laci Aplikasi",
+                                        contentDescription = "Laci Aplikasi",
                                         tint = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.size(26.dp)
+                                        modifier = Modifier.size(38.dp)
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Apps,
+                                        contentDescription = selectedShortcut?.fallbackLabel,
+                                        tint = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.size(38.dp)
                                     )
                                 }
                             }
