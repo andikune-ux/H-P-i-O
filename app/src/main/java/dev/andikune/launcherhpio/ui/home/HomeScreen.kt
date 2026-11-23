@@ -81,6 +81,7 @@ import dev.andikune.launcherhpio.ui.LauncherUiState
 import dev.andikune.launcherhpio.ui.components.GlassAppIconTile
 import dev.andikune.launcherhpio.ui.components.LiquidGlassPill
 import dev.andikune.launcherhpio.ui.components.LiquidGlassSurface
+import dev.andikune.launcherhpio.ui.components.liquidGlassPanelModifier
 
 @Composable
 fun HomeScreen(
@@ -923,8 +924,7 @@ fun WidgetPickerSheet(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+                        .then(liquidGlassPanelModifier(cornerRadius = 16.dp))
                         .clickable { onSelectBuiltInWidget(type) }
                         .padding(14.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -966,8 +966,7 @@ fun WidgetPickerSheet(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+                            .then(liquidGlassPanelModifier(cornerRadius = 14.dp))
                             .clickable { onRequestSystemWidget(provider) }
                             .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically

@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import dev.andikune.launcherhpio.domain.model.ControlCenterState
 import dev.andikune.launcherhpio.domain.model.LauncherPreferences
 import dev.andikune.launcherhpio.ui.components.LiquidGlassSurface
+import dev.andikune.launcherhpio.ui.components.liquidGlassPanelModifier
 
 @Composable
 fun ControlCenterOverlay(
@@ -132,6 +133,7 @@ fun ControlCenterOverlay(
                         title = "Wi-Fi",
                         subtitle = state.wifiLabel,
                         isActive = state.wifiEnabled,
+                        preferences = preferences,
                         onClick = onOpenWifiPanel,
                         modifier = Modifier
                             .weight(1f)
@@ -146,6 +148,7 @@ fun ControlCenterOverlay(
                             else -> "Nonaktif"
                         },
                         isActive = state.bluetoothEnabled,
+                        preferences = preferences,
                         onClick = onOpenBluetoothOrRequestPermission,
                         modifier = Modifier
                             .weight(1f)
@@ -160,6 +163,7 @@ fun ControlCenterOverlay(
                             else -> "Mati"
                         },
                         isActive = state.torchEnabled,
+                        preferences = preferences,
                         onClick = onToggleTorch,
                         modifier = Modifier
                             .weight(1f)
@@ -171,8 +175,7 @@ fun ControlCenterOverlay(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(22.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+                        .then(liquidGlassPanelModifier(preferences, 22.dp))
                         .padding(14.dp)
                 ) {
                     Row(
@@ -269,6 +272,7 @@ fun ControlCenterOverlay(
                         title = "Launcher",
                         subtitle = if (state.isDefaultLauncher) "Default Aktif" else "Atur Default",
                         isActive = state.isDefaultLauncher,
+                        preferences = preferences,
                         onClick = onOpenDefaultLauncherSetup,
                         modifier = Modifier.weight(1f)
                     )
@@ -277,6 +281,7 @@ fun ControlCenterOverlay(
                         title = "Tema Kaca",
                         subtitle = "Personalisasi",
                         isActive = false,
+                        preferences = preferences,
                         onClick = onOpenPersonalization,
                         modifier = Modifier.weight(1f)
                     )
@@ -285,6 +290,7 @@ fun ControlCenterOverlay(
                         title = "Pengaturan",
                         subtitle = "Sistem Android",
                         isActive = false,
+                        preferences = preferences,
                         onClick = onOpenSystemSettings,
                         modifier = Modifier.weight(1f)
                     )
@@ -300,6 +306,7 @@ private fun ControlTile(
     title: String,
     subtitle: String,
     isActive: Boolean,
+    preferences: LauncherPreferences,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -316,8 +323,7 @@ private fun ControlTile(
 
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(22.dp))
-            .background(bgColor)
+            .then(liquidGlassPanelModifier(preferences, 22.dp, if (isActive) 0.10f else 0f))
             .clickable(onClick = onClick)
             .padding(14.dp),
         horizontalAlignment = Alignment.Start

@@ -49,6 +49,7 @@ import dev.andikune.launcherhpio.domain.model.InstalledApp
 import dev.andikune.launcherhpio.domain.model.LauncherPreferences
 import dev.andikune.launcherhpio.ui.components.GlassAppIconTile
 import dev.andikune.launcherhpio.ui.components.LiquidGlassSurface
+import dev.andikune.launcherhpio.ui.components.liquidGlassPanelModifier
 
 @Composable
 fun UniversalSearchOverlay(
@@ -174,7 +175,8 @@ fun UniversalSearchOverlay(
                         }
                         items(matchingFolders, key = { it.id }) { folder ->
                             SearchActionRow(
-                                icon = Icons.Rounded.Folder,
+                                preferences = preferences,
+                                icon =  Icons.Rounded.Folder,
                                 title = folder.name,
                                 subtitle = "${folder.apps.size} aplikasi",
                                 onClick = {
@@ -194,7 +196,8 @@ fun UniversalSearchOverlay(
                     }
                     item {
                         SearchActionRow(
-                            icon = Icons.Rounded.Tune,
+                                preferences = preferences,
+                                icon =  Icons.Rounded.Tune,
                             title = "Pusat Kontrol Liquid Glass",
                             subtitle = "Wi-Fi, Bluetooth, Senter, Kecerahan & Volume",
                             onClick = onOpenControlCenter
@@ -202,7 +205,8 @@ fun UniversalSearchOverlay(
                     }
                     item {
                         SearchActionRow(
-                            icon = Icons.Rounded.Palette,
+                                preferences = preferences,
+                                icon =  Icons.Rounded.Palette,
                             title = "Personalisasi & Tampilan",
                             subtitle = "Wallpaper, blur kaca, ukuran ikon, grid & gestur",
                             onClick = onOpenPersonalization
@@ -210,7 +214,8 @@ fun UniversalSearchOverlay(
                     }
                     item {
                         SearchActionRow(
-                            icon = Icons.Rounded.Settings,
+                                preferences = preferences,
+                                icon =  Icons.Rounded.Settings,
                             title = "Diagnostik, Izin & Pembaruan Sistem",
                             subtitle = "Kelola izin, penyimpanan privat, log crash & rilis GitHub",
                             onClick = onOpenSystemHub
@@ -220,7 +225,8 @@ fun UniversalSearchOverlay(
                     if (trimmed.isNotEmpty()) {
                         item {
                             SearchActionRow(
-                                icon = Icons.Rounded.Public,
+                                preferences = preferences,
+                                icon =  Icons.Rounded.Public,
                                 title = "Cari \"$query\" di Web",
                                 subtitle = "Buka pencarian lewat browser sistem",
                                 onClick = { onWebSearch(query) }
@@ -235,6 +241,7 @@ fun UniversalSearchOverlay(
 
 @Composable
 private fun SearchActionRow(
+    preferences: LauncherPreferences,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     subtitle: String,
@@ -243,8 +250,7 @@ private fun SearchActionRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+            .then(liquidGlassPanelModifier(preferences, 16.dp))
             .clickable(onClick = onClick)
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically

@@ -52,6 +52,7 @@ import dev.andikune.launcherhpio.domain.model.CrashReportRecord
 import dev.andikune.launcherhpio.domain.model.LauncherPreferences
 import dev.andikune.launcherhpio.domain.model.StorageSummary
 import dev.andikune.launcherhpio.ui.components.LiquidGlassSurface
+import dev.andikune.launcherhpio.ui.components.liquidGlassPanelModifier
 
 @Composable
 fun SystemHubScreen(
@@ -122,6 +123,7 @@ fun SystemHubScreen(
 
                 // 1. Permission & Capability Management
                 HubCard(
+                    preferences = preferences,
                     icon = Icons.Rounded.Security,
                     title = "Izin & Kapabilitas Minimum"
                 ) {
@@ -163,6 +165,7 @@ fun SystemHubScreen(
 
                 // 2. Release Update Checker
                 HubCard(
+                    preferences = preferences,
                     icon = Icons.Rounded.SystemUpdate,
                     title = "Pembaruan GitHub Releases (andikune-ux/H-P-i-O)"
                 ) {
@@ -195,6 +198,7 @@ fun SystemHubScreen(
 
                 // 3. Structured Application Storage
                 HubCard(
+                    preferences = preferences,
                     icon = Icons.Rounded.Folder,
                     title = "Penyimpanan Privat Terstruktur"
                 ) {
@@ -235,6 +239,7 @@ fun SystemHubScreen(
 
                 // 4. Crash Recovery Logs & Limitations
                 HubCard(
+                    preferences = preferences,
                     icon = Icons.Rounded.BugReport,
                     title = "Riwayat Pemulihan Crash (${crashHistory.size})"
                 ) {
@@ -268,6 +273,7 @@ fun SystemHubScreen(
 
 @Composable
 private fun HubCard(
+    preferences: LauncherPreferences,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     content: @Composable () -> Unit
@@ -275,9 +281,7 @@ private fun HubCard(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(22.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
-            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f), RoundedCornerShape(22.dp))
+            .then(liquidGlassPanelModifier(preferences, 22.dp))
             .padding(16.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {

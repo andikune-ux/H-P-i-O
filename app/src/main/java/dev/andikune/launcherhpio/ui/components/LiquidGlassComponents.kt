@@ -31,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
@@ -141,6 +142,58 @@ fun WallpaperBackdrop(
 }
 
 @Composable
+fun liquidGlassPanelModifier(
+    preferences: LauncherPreferences? = null,
+    cornerRadius: Dp = 24.dp,
+    alphaBoost: Float = 0f
+): Modifier {
+    val dark = if (preferences != null) isDarkModeActive(preferences) else isSystemInDarkTheme()
+    val alpha = ((preferences?.glassTransparency ?: 0.22f) + alphaBoost).coerceIn(0.12f, 0.78f)
+    val shape = RoundedCornerShape(cornerRadius)
+    val fill = if (dark) {
+        Brush.linearGradient(
+            colors = listOf(
+                Color(0xFF52617D).copy(alpha = (alpha * 0.54f).coerceAtMost(0.48f)),
+                Color(0xFF18243B).copy(alpha = (alpha + 0.10f).coerceAtMost(0.72f)),
+                Color(0xFF0A1325).copy(alpha = (alpha + 0.16f).coerceAtMost(0.82f))
+            )
+        )
+    } else {
+        Brush.linearGradient(
+            colors = listOf(
+                Color.White.copy(alpha = (alpha + 0.18f).coerceAtMost(0.76f)),
+                Color(0xFFF5F9FF).copy(alpha = (alpha + 0.12f).coerceAtMost(0.72f)),
+                Color(0xFFDCE8F8).copy(alpha = (alpha + 0.08f).coerceAtMost(0.66f))
+            )
+        )
+    }
+    val edge = if (dark) {
+        Brush.linearGradient(
+            colors = listOf(
+                Color.White.copy(alpha = 0.42f),
+                Color(0xFFB7D5FF).copy(alpha = 0.20f),
+                Color.White.copy(alpha = 0.07f),
+                Color(0xFF9CBFFF).copy(alpha = 0.18f)
+            )
+        )
+    } else {
+        Brush.linearGradient(
+            colors = listOf(
+                Color.White.copy(alpha = 0.94f),
+                Color(0xFFBBD0EB).copy(alpha = 0.48f),
+                Color.White.copy(alpha = 0.34f),
+                Color(0xFF8FAED8).copy(alpha = 0.34f)
+            )
+        )
+    }
+    return Modifier
+        .shadow(if (dark) 18.dp else 14.dp, shape, clip = false)
+        .clip(shape)
+        .background(fill, shape)
+        .border(0.9.dp, edge, shape)
+}
+
+@Composable
 fun LiquidGlassSurface(
     modifier: Modifier = Modifier,
     preferences: LauncherPreferences,
@@ -148,45 +201,42 @@ fun LiquidGlassSurface(
     alphaBoost: Float = 0f,
     content: @Composable BoxScope.() -> Unit
 ) {
-    val isDark = isDarkModeActive(preferences)
-    val baseAlpha = (preferences.glassTransparency + alphaBoost).coerceIn(0.14f, 0.90f)
+    val dark = isDarkModeActive(preferences)
     val shape = RoundedCornerShape(cornerRadius)
-
-    val fillBrush = if (isDark) {
-        Brush.linearGradient(
-            colors = listOf(
-                Color(0xFF16223C).copy(alpha = (baseAlpha + 0.14f).coerceAtMost(0.92f)),
-                Color(0xFF0E1629).copy(alpha = baseAlpha)
-            )
-        )
-    } else {
-        Brush.linearGradient(
-            colors = listOf(
-                Color.White.copy(alpha = (baseAlpha + 0.34f).coerceAtMost(0.92f)),
-                Color(0xFFEBF2FC).copy(alpha = (baseAlpha + 0.20f).coerceAtMost(0.86f))
-            )
-        )
-    }
-
-    val specularBorderBrush = Brush.linearGradient(
-        colors = if (isDark) {
-            listOf(GlassHighlightDark, GlassBorderDark, Color.White.copy(alpha = 0.08f))
-        } else {
-            listOf(GlassHighlightLight, GlassBorderLight, Color.White.copy(alpha = 0.35f))
-        }
-    )
-
     Surface(
-        modifier = modifier
-            .clip(shape)
-            .background(fillBrush, shape)
-            .border(width = 1.dp, brush = specularBorderBrush, shape = shape),
+        modifier = modifier.then(liquidGlassPanelModifier(preferences, cornerRadius, alphaBoost)),
         shape = shape,
         color = Color.Transparent,
         tonalElevation = 0.dp,
         shadowElevation = 0.dp
     ) {
-        Box(content = content)
+        Box {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = if (dark) {
+                                listOf(
+                                    Color.White.copy(alpha = 0.15f),
+                                    Color(0xFFBBD8FF).copy(alpha = 0.035f),
+                                    Color.Transparent,
+                                    Color.Black.copy(alpha = 0.10f)
+                                )
+                            } else {
+                                listOf(
+                                    Color.White.copy(alpha = 0.62f),
+                                    Color.White.copy(alpha = 0.12f),
+                                    Color.Transparent,
+                                    Color(0xFF7899C8).copy(alpha = 0.07f)
+                                )
+                            }
+                        ),
+                        shape
+                    )
+            )
+            content()
+        }
     }
 }
 
@@ -238,10 +288,16 @@ fun GlassAppIconTile(
                 .size(iconSize)
                 .clip(RoundedCornerShape(16.dp))
                 .background(
-                    MaterialTheme.colorScheme.surface.copy(alpha = 0.22f)
+                    Brush.linearGradient(
+                        listOf(
+                            Color.White.copy(alpha = 0.30f),
+                            Color(0xFFB9D4F5).copy(alpha = 0.12f),
+                            Color.Black.copy(alpha = 0.08f)
+                        )
+                    )
                 )
                 .border(
-                    BorderStroke(0.75.dp, Color.White.copy(alpha = 0.28f)),
+                    BorderStroke(0.9.dp, Color.White.copy(alpha = 0.48f)),
                     RoundedCornerShape(16.dp)
                 ),
             contentAlignment = Alignment.Center
@@ -276,7 +332,9 @@ fun GlassAppIconTile(
                 modifier = Modifier
                     .padding(top = 5.dp)
                     .background(
-                        color = Color.Black.copy(alpha = 0.22f),
+                        brush = Brush.verticalGradient(
+                            listOf(Color.White.copy(alpha = 0.22f), Color.Black.copy(alpha = 0.30f))
+                        ),
                         shape = CircleShape
                     )
                     .padding(horizontal = 6.dp, vertical = 1.dp)

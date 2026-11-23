@@ -52,6 +52,7 @@ import dev.andikune.launcherhpio.domain.model.IconSizePreset
 import dev.andikune.launcherhpio.domain.model.LauncherPreferences
 import dev.andikune.launcherhpio.domain.model.ThemeMode
 import dev.andikune.launcherhpio.ui.components.LiquidGlassSurface
+import dev.andikune.launcherhpio.ui.components.liquidGlassPanelModifier
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -126,7 +127,7 @@ fun PersonalizationScreen(
                 }
 
                 // Theme Mode
-                SettingsSectionCard(title = "Mode Tampilan") {
+                SettingsSectionCard(preferences = preferences, title = "Mode Tampilan") {
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -144,7 +145,7 @@ fun PersonalizationScreen(
                 }
 
                 // Wallpaper Selection
-                SettingsSectionCard(title = "Wallpaper Liquid Glass") {
+                SettingsSectionCard(preferences = preferences, title = "Wallpaper Liquid Glass") {
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -186,7 +187,7 @@ fun PersonalizationScreen(
                 }
 
                 // Liquid Glass Transparency & Blur
-                SettingsSectionCard(title = "Material Liquid Glass") {
+                SettingsSectionCard(preferences = preferences, title = "Material Liquid Glass") {
                     Text(
                         text = "Transparansi Panel (${(preferences.glassTransparency * 100).toInt()}%)",
                         style = MaterialTheme.typography.bodyMedium
@@ -208,7 +209,7 @@ fun PersonalizationScreen(
                 }
 
                 // Grid & Icon Size
-                SettingsSectionCard(title = "Grid & Ukuran Ikon") {
+                SettingsSectionCard(preferences = preferences, title = "Grid & Ukuran Ikon") {
                     Text("Grid Layar Utama", style = MaterialTheme.typography.labelMedium)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         GridPreset.entries.forEach { preset ->
@@ -244,7 +245,7 @@ fun PersonalizationScreen(
                 }
 
                 // Animation Style
-                SettingsSectionCard(title = "Animasi Laci Aplikasi") {
+                SettingsSectionCard(preferences = preferences, title = "Animasi Laci Aplikasi") {
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         DrawerAnimationStyle.entries.forEach { style ->
                             FilterChip(
@@ -257,7 +258,7 @@ fun PersonalizationScreen(
                 }
 
                 // Dock, Widgets & Gestures
-                SettingsSectionCard(title = "Dock, Widget & Gestur") {
+                SettingsSectionCard(preferences = preferences, title = "Dock, Widget & Gestur") {
                     SettingToggleRow(
                         title = "Tampilkan Dock Mengambang",
                         subtitle = "Bar aplikasi cepat di bawah Layar Utama",
@@ -296,15 +297,14 @@ fun PersonalizationScreen(
 
 @Composable
 private fun SettingsSectionCard(
+    preferences: LauncherPreferences,
     title: String,
     content: @Composable () -> Unit
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(22.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
-            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f), RoundedCornerShape(22.dp))
+            .then(liquidGlassPanelModifier(preferences, 22.dp))
             .padding(16.dp)
     ) {
         Text(
