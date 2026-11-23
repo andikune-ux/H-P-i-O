@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BatteryChargingFull
@@ -226,7 +227,7 @@ private fun SystemTelemetryGlassWidget(
     }
 
     LiquidGlassSurface(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().widthIn(max = 560.dp),
         preferences = preferences,
         cornerRadius = 24.dp
     ) {
@@ -333,6 +334,7 @@ private fun QuickNotesGlassWidget(
     LiquidGlassSurface(
         modifier = modifier
             .fillMaxWidth()
+            .widthIn(max = 560.dp)
             .clickable { editing = true },
         preferences = preferences,
         cornerRadius = 24.dp
@@ -427,7 +429,7 @@ fun SystemAppWidgetCard(
     val hostView = remember(appWidgetId) { widgetHelper.createHostView(appWidgetId) }
 
     LiquidGlassSurface(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().widthIn(max = 560.dp),
         preferences = preferences,
         cornerRadius = 24.dp
     ) {
