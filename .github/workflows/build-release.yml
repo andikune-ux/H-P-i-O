@@ -172,12 +172,12 @@ jobs:
             "$APK_IN"
           VERIFY_OUT="$("$BUILD_TOOLS_DIR/apksigner" verify --print-certs --verbose "$APK_OUT")"
           echo "$VERIFY_OUT"
-          SIGNER_COUNT="$(printf '%s\n' "$VERIFY_OUT" | awk '/Number of signers:/ {print $4}')"
+          SIGNER_COUNT="$(printf '%s\n' "$VERIFY_OUT" | awk '/Number of signers:/ {print $NF; exit}')"
           if [[ "$SIGNER_COUNT" != "1" ]]; then
             echo "::error::Expected exactly 1 APK signer, got: $SIGNER_COUNT"
             exit 1
           fi
-          CERT_SHA256="$(printf '%s\n' "$VERIFY_OUT" | awk '/Signer #1 certificate SHA-256 digest:/ {print tolower($6)}')"
+          CERT_SHA256="$(printf '%s\n' "$VERIFY_OUT" | awk '/certificate SHA-256 digest:/ {print tolower($NF); exit}')"
           if [[ -z "$CERT_SHA256" ]]; then
             echo "::error::Could not extract Signer #1 SHA-256 digest"
             exit 1
@@ -202,7 +202,7 @@ jobs:
             elif gh release download "$LATEST_TAG" --pattern "*.apk" --dir "$RUNNER_TEMP/prev_release" 2>/dev/null; then
               PREV_APK="$(find "$RUNNER_TEMP/prev_release" -name '*.apk' | head -n 1)"
               if [[ -n "$PREV_APK" ]]; then
-                PREV_CERT="$("$BUILD_TOOLS_DIR/apksigner" verify --print-certs "$PREV_APK" | awk '/Signer #1 certificate SHA-256 digest:/ {print tolower($6)}')"
+                PREV_CERT="$("$BUILD_TOOLS_DIR/apksigner" verify --print-certs "$PREV_APK" | awk '/certificate SHA-256 digest:/ {print tolower($NF); exit}')"
                 if [[ -n "$PREV_CERT" && "$PREV_CERT" != "$CERT_SHA256" ]]; then
                   echo "::error::Keystore inconsistency detected against $LATEST_TAG ($PREV_CERT vs $CERT_SHA256). Aborting."
                   exit 1
@@ -211,7 +211,8 @@ jobs:
             fi
             rm -rf "$RUNNER_TEMP/prev_release"
           fi
-          "$BUILD_TOOLS_DIR/aapt2" dump badging "$APK_OUT" | grep -E "package: name='dev.andikune.launcherhpio'"
+          BADGING_OUT="$("$BUILD_TOOLS_DIR/aapt2" dump badging "$APK_OUT")"
+          printf '%s\n' "$BADGING_OUT" | grep -F "package: name='dev.andikune.launcherhpio'"
           sha256sum "$APK_OUT" > "${APK_OUT}.sha256"
           printf '%s\n' "$CERT_SHA256" > "${APK_OUT}.cert-sha256"
           echo "cert_sha256=$CERT_SHA256" >> "$GITHUB_OUTPUT"
@@ -264,6 +265,7 @@ jobs:
           SHA256_VAL="$(cut -d' ' -f1 release-assets/*.sha256)"
           NOTES_BODY="$(printf 'Rilis resmi H P i O v%s (versionCode: %s)\nCommit: %s\nAPK SHA-256: %s\nSigning Cert SHA-256: %s' "$VERSION_NAME" "$VERSION_CODE" "$GITHUB_SHA" "$SHA256_VAL" "$CERT_SHA256")"
           gh release create "$RELEASE_TAG" release-assets/*.apk release-assets/*.sha256 release-assets/*.cert-sha256 \
+            --target "$GITHUB_SHA" \
             --title "H P i O $RELEASE_TAG" \
             --notes "$NOTES_BODY"
 
