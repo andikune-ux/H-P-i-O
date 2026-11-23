@@ -86,7 +86,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
       - uses: android-actions/setup-android@v4.0.4
       - uses: gradle/actions/setup-gradle@v4
       - name: Generate H P i O Version
@@ -148,7 +148,12 @@ jobs:
           EXPECTED_CERT_SHA256: ${{ secrets.ANDIKUNE_CERT_SHA256 }}
           GH_TOKEN: ${{ github.token }}
         run: |
-          BUILD_TOOLS_DIR="$(find "$ANDROID_HOME/build-tools" -maxdepth 1 -mindepth 1 | sort -V | tail -n 1)"
+          SDK_DIR="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          BUILD_TOOLS_DIR="$(find "$SDK_DIR/build-tools" -maxdepth 1 -mindepth 1 | sort -V | while read -r d; do [[ -x "$d/apksigner" ]] && echo "$d"; done | tail -n 1)"
+          if [[ -z "$BUILD_TOOLS_DIR" || ! -x "$BUILD_TOOLS_DIR/apksigner" ]]; then
+            echo "::error::Android build-tools with apksigner not found under $SDK_DIR/build-tools"
+            exit 1
+          fi
           APK_IN="$(find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' | head -n 1)"
           if [[ -z "$APK_IN" || ! -f "$APK_IN" ]]; then
             echo "::error::Release APK output not found after assembleRelease"

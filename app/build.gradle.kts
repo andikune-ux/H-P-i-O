@@ -1,4 +1,5 @@
 import com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesStrategy
+import org.gradle.process.CommandLineArgumentProvider
 
 plugins {
   alias(libs.plugins.android.application)
@@ -68,7 +69,23 @@ android {
     compose = true
     buildConfig = true
   }
-  testOptions { unitTests { isIncludeAndroidResources = true } }
+  val robolectricDir = layout.buildDirectory.dir("robolectric")
+  testOptions {
+    unitTests {
+      isIncludeAndroidResources = true
+      all { testTask ->
+        testTask.dependsOn("fetchRobolectricDependencies")
+        testTask.jvmArgumentProviders.add(
+          CommandLineArgumentProvider {
+            listOf(
+              "-Drobolectric.offline=true",
+              "-Drobolectric.dependency.dir=${robolectricDir.get().asFile.absolutePath}"
+            )
+          }
+        )
+      }
+    }
+  }
   dependenciesInfo {
     includeInApk = false
     includeInBundle = true
@@ -146,4 +163,19 @@ dependencies {
   debugImplementation(libs.androidx.compose.ui.tooling)
   // "ksp"(libs.androidx.room.compiler)
   // "ksp"(libs.moshi.kotlin.codegen)
+}
+
+val robolectricSdkJars by configurations.creating {
+  isCanBeConsumed = false
+  isCanBeResolved = true
+  isTransitive = false
+}
+
+dependencies {
+  robolectricSdkJars("org.robolectric:android-all-instrumented:16-robolectric-13921718-i7")
+}
+
+tasks.register<Sync>("fetchRobolectricDependencies") {
+  from(robolectricSdkJars.elements)
+  into(layout.buildDirectory.dir("robolectric"))
 }
