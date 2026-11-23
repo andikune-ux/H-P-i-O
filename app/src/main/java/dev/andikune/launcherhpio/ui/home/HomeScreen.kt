@@ -244,106 +244,106 @@ fun HomeScreen(
             ) { pageIndex ->
                 val pageData = pages.getOrNull(pageIndex)
                 val items = pageData?.items.orEmpty()
-                val widgets = items.filter {
-                    it is HomeGridItem.BuiltInWidgetItem || it is HomeGridItem.SystemWidgetItem
+                val cols = prefs.homeGridPreset.columns.coerceIn(1, 6)
+                // Keep the user's saved item order. Consecutive app/folder entries
+                // share grid rows; a widget closes the current row and stays exactly
+                // where it was placed instead of being moved to the bottom.
+                val contentSegments = mutableListOf<List<HomeGridItem>>()
+                val pendingApps = mutableListOf<HomeGridItem>()
+                items.forEach { entry ->
+                    if (entry is HomeGridItem.AppShortcut || entry is HomeGridItem.FolderItem) {
+                        pendingApps += entry
+                    } else {
+                        pendingApps.chunked(cols).forEach { contentSegments += it }
+                        pendingApps.clear()
+                        contentSegments += listOf(entry)
+                    }
                 }
-                val gridEntries = items.filter {
-                    it is HomeGridItem.AppShortcut || it is HomeGridItem.FolderItem
-                }
+                pendingApps.chunked(cols).forEach { contentSegments += it }
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(vertical = 6.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // App shortcuts and folders are the primary home-screen content.
-                    // Widgets stay below the app grid so a page cannot open as a stack
-                    // of full-width cards just because its saved layout lists widgets first.
-                    if (gridEntries.isNotEmpty()) {
-                        val cols = prefs.homeGridPreset.columns
-                        val rows = gridEntries.chunked(cols)
-                        items(rows.size) { rowIndex ->
-                            val rowItems = rows[rowIndex]
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                for (colIndex in 0 until cols) {
-                                    val entry = rowItems.getOrNull(colIndex)
-                                    Box(
-                                        modifier = Modifier.weight(1f),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        when (entry) {
-                                            is HomeGridItem.AppShortcut -> {
-                                                val resolved = installedAppsByComponent[
-                                                    "${entry.packageName}/${entry.activityName}"
-                                                ]
-                                                GlassAppIconTile(
-                                                    label = resolved?.label ?: entry.fallbackLabel,
-                                                    appEntry = resolved,
-                                                    iconSize = prefs.iconSizePreset.iconDp.dp,
-                                                    onClick = {
-                                                        onLaunchApp(
-                                                            entry.packageName,
-                                                            entry.activityName,
-                                                            resolved?.label ?: entry.fallbackLabel
-                                                        )
-                                                    },
-                                                    onLongClick = {
-                                                        if (resolved != null) {
-                                                            onOpenAppActions(resolved)
-                                                        } else {
-                                                            onRemoveHomeItem(pageIndex, entry.id)
+                    items(contentSegments, key = { segment ->
+                        segment.firstOrNull()?.id ?: "empty_segment"
+                    }) { segment ->
+                        when (val first = segment.firstOrNull()) {
+                            is HomeGridItem.AppShortcut, is HomeGridItem.FolderItem -> {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    for (colIndex in 0 until cols) {
+                                        val entry = segment.getOrNull(colIndex)
+                                        Box(
+                                            modifier = Modifier.weight(1f),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            when (entry) {
+                                                is HomeGridItem.AppShortcut -> {
+                                                    val resolved = installedAppsByComponent[
+                                                        "${entry.packageName}/${entry.activityName}"
+                                                    ]
+                                                    GlassAppIconTile(
+                                                        label = resolved?.label ?: entry.fallbackLabel,
+                                                        appEntry = resolved,
+                                                        iconSize = prefs.iconSizePreset.iconDp.dp,
+                                                        onClick = {
+                                                            onLaunchApp(
+                                                                entry.packageName,
+                                                                entry.activityName,
+                                                                resolved?.label ?: entry.fallbackLabel
+                                                            )
+                                                        },
+                                                        onLongClick = {
+                                                            if (resolved != null) onOpenAppActions(resolved)
+                                                            else onRemoveHomeItem(pageIndex, entry.id)
                                                         }
-                                                    }
-                                                )
+                                                    )
+                                                }
+                                                is HomeGridItem.FolderItem -> {
+                                                    FolderIconTile(
+                                                        folder = entry,
+                                                        installedAppsByComponent = installedAppsByComponent,
+                                                        iconSize = prefs.iconSizePreset.iconDp.dp,
+                                                        onClick = { onOpenFolder(entry.id) },
+                                                        onLongClick = { onRemoveHomeItem(pageIndex, entry.id) }
+                                                    )
+                                                }
+                                                else -> Spacer(modifier = Modifier.size(prefs.iconSizePreset.iconDp.dp))
                                             }
-                                            is HomeGridItem.FolderItem -> {
-                                                FolderIconTile(
-                                                    folder = entry,
-                                                    installedAppsByComponent = installedAppsByComponent,
-                                                    iconSize = prefs.iconSizePreset.iconDp.dp,
-                                                    onClick = { onOpenFolder(entry.id) },
-                                                    onLongClick = { onRemoveHomeItem(pageIndex, entry.id) }
-                                                )
-                                            }
-                                            else -> Spacer(modifier = Modifier.size(prefs.iconSizePreset.iconDp.dp))
                                         }
                                     }
                                 }
                             }
-                        }
-                    }
-
-                    // Widgets remain available and removable, but are secondary
-                    // content placed after shortcuts instead of taking over the first view.
-                    items(widgets, key = { it.id }) { widget ->
-                        when (widget) {
                             is HomeGridItem.BuiltInWidgetItem -> {
                                 BuiltInGlassWidgetCard(
-                                    widgetType = widget.widgetType,
+                                    widgetType = first.widgetType,
                                     preferences = prefs,
                                     controlCenterState = uiState.controlCenterState,
                                     onUpdateNote = onUpdateQuickNote,
-                                    onRemove = { onRemoveHomeItem(pageIndex, widget.id) }
+                                    onRemove = { onRemoveHomeItem(pageIndex, first.id) },
+                                    modifier = Modifier.fillMaxWidth().widthIn(max = 560.dp)
                                 )
                             }
                             is HomeGridItem.SystemWidgetItem -> {
                                 SystemAppWidgetCard(
-                                    appWidgetId = widget.appWidgetId,
-                                    providerLabel = widget.providerLabel,
+                                    appWidgetId = first.appWidgetId,
+                                    providerLabel = first.providerLabel,
                                     widgetHelper = widgetHelper,
                                     preferences = prefs,
-                                    onRemove = { onRemoveHomeItem(pageIndex, widget.id) }
+                                    onRemove = { onRemoveHomeItem(pageIndex, first.id) },
+                                    modifier = Modifier.fillMaxWidth().widthIn(max = 560.dp)
                                 )
                             }
-                            else -> Unit
+                            null -> Unit
                         }
                     }
 
-                    if (gridEntries.isEmpty() && widgets.isEmpty()) {
-                        item {
+                    if (items.isEmpty()) {
+                        item(key = "empty_home_page") {
                             LiquidGlassSurface(
                                 modifier = Modifier.fillMaxWidth(),
                                 preferences = prefs,
