@@ -592,8 +592,11 @@ fun HomeScreen(
                                 modifier = Modifier
                                     .align(Alignment.CenterStart)
                                     .offset {
+                                        val radiusPx = 36.dp.roundToPx()
+                                        val maxOffset = (dockWidthPx.roundToInt() - radiusPx * 2)
+                                            .coerceAtLeast(0)
                                         IntOffset(
-                                            dockLensX.roundToInt() - 36.dp.roundToPx(),
+                                            (dockLensX.roundToInt() - radiusPx).coerceIn(0, maxOffset),
                                             0
                                         )
                                     }
