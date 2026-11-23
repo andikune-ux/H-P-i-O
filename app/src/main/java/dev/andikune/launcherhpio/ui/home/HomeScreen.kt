@@ -58,6 +58,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -477,6 +478,7 @@ fun HomeScreen(
                     var dockLensSelectedIndex by remember { mutableIntStateOf(-1) }
                     var dockLensStretch by remember { mutableFloatStateOf(0f) }
                     val lensPosition = remember { Animatable(-1f) }
+                    val dockAnimationScope = rememberCoroutineScope()
                     val density = LocalDensity.current
                     val dockHorizontalPaddingPx = with(density) { 8.dp.toPx() }
                     val dockItemSpacingPx = with(density) { 2.dp.toPx() }
@@ -525,7 +527,7 @@ fun HomeScreen(
                                         )
                                         dockLensExitX = dockLensX
                                         dockLensActive = true
-                                        launch { lensPosition.snapTo(dockLensX) }
+                                        dockAnimationScope.launch { lensPosition.snapTo(dockLensX) }
                                         dockLensStretch = 0f
                                         dockLensSelectedIndex = selectedDockIndex(dockLensX)
                                     },
@@ -536,7 +538,7 @@ fun HomeScreen(
                                             dockLastItemCenterPx
                                         )
                                         dockLensExitX = dockLensX
-                                        launch {
+                                        dockAnimationScope.launch {
                                             lensPosition.animateTo(
                                                 dockLensX,
                                                 animationSpec = spring(dampingRatio = 0.86f, stiffness = 620f)
@@ -564,14 +566,14 @@ fun HomeScreen(
                                             onOpenDrawer()
                                         }
                                         dockLensExitX = lensPosition.value
-                                        launch { lensPosition.snapTo(dockLensExitX) }
+                                        dockAnimationScope.launch { lensPosition.snapTo(dockLensExitX) }
                                         dockLensActive = false
                                         dockLensX = -1f
                                         dockLensStretch = 0f
                                     },
                                     onDragCancel = {
                                         dockLensExitX = lensPosition.value
-                                        launch { lensPosition.snapTo(dockLensExitX) }
+                                        dockAnimationScope.launch { lensPosition.snapTo(dockLensExitX) }
                                         dockLensActive = false
                                         dockLensX = -1f
                                         dockLensStretch = 0f
