@@ -184,9 +184,26 @@ fun PersonalizationScreen(
                             Text("Wallpaper OS")
                         }
                     }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Blur Wallpaper · ${((preferences.blurIntensityDp / 24f) * 100f).toInt()}%",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Slider(
+                        value = preferences.blurIntensityDp,
+                        onValueChange = { value ->
+                            onUpdatePreferences { it.copy(blurIntensityDp = value) }
+                        },
+                        valueRange = 0f..24f
+                    )
+                    Text(
+                        text = "0% = wallpaper tajam, 100% = blur maksimum.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
 
-                // Liquid Glass Transparency & Blur
+                // Liquid Glass transparency remains user-adjustable; material optics stay fixed.
                 SettingsSectionCard(preferences = preferences, title = "Material Liquid Glass") {
                     Text(
                         text = "Transparansi Panel (${(preferences.glassTransparency * 100).toInt()}%)",
@@ -194,17 +211,15 @@ fun PersonalizationScreen(
                     )
                     Slider(
                         value = preferences.glassTransparency,
-                        onValueChange = { v -> onUpdatePreferences { it.copy(glassTransparency = v) } },
+                        onValueChange = { value ->
+                            onUpdatePreferences { it.copy(glassTransparency = value) }
+                        },
                         valueRange = 0.15f..0.85f
                     )
                     Text(
-                        text = "Intensitas Blur Latar (${preferences.blurIntensityDp.toInt()} dp)",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Slider(
-                        value = preferences.blurIntensityDp,
-                        onValueChange = { v -> onUpdatePreferences { it.copy(blurIntensityDp = v) } },
-                        valueRange = 0f..24f
+                        text = "Efek optik dan blur material kaca mengikuti konfigurasi tetap H P i O.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 

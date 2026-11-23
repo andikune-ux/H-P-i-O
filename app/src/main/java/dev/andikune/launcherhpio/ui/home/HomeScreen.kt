@@ -55,6 +55,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -66,6 +67,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.IntOffset
@@ -468,40 +470,82 @@ fun HomeScreen(
                     val dockItemCount = dockShortcutCount + if (prefs.showAppDrawerButton) 1 else 0
                     var dockWidthPx by remember { mutableFloatStateOf(1f) }
                     var dockLensX by remember { mutableFloatStateOf(-1f) }
+                    var dockLensStartX by remember { mutableFloatStateOf(-1f) }
+                    var dockLensExitX by remember { mutableFloatStateOf(-1f) }
+                    var dockLensActive by remember { mutableStateOf(false) }
                     var dockLensSelectedIndex by remember { mutableIntStateOf(-1) }
                     var dockLensStretch by remember { mutableFloatStateOf(0f) }
-                    val smoothLensX by animateFloatAsState(
+                    val density = LocalDensity.current
+                    val dockHorizontalPaddingPx = with(density) { 8.dp.toPx() }
+                    val dockItemSpacingPx = with(density) { 2.dp.toPx() }
+                    val safeDockItemCount = dockItemCount.coerceAtLeast(1)
+                    val dockItemSlotWidthPx = (
+                        dockWidthPx -
+                            dockHorizontalPaddingPx * 2f -
+                            dockItemSpacingPx * (safeDockItemCount - 1)
+                    ).div(safeDockItemCount).coerceAtLeast(1f)
+                    val dockItemStepPx = dockItemSlotWidthPx + dockItemSpacingPx
+                    val dockFirstItemCenterPx = dockHorizontalPaddingPx + dockItemSlotWidthPx / 2f
+                    val dockLastItemCenterPx = dockFirstItemCenterPx +
+                        (safeDockItemCount - 1) * dockItemStepPx
+                    val dockLensVisibility by animateFloatAsState(
+                        targetValue = if (dockLensActive) 1f else 0f,
+                        animationSpec = spring(dampingRatio = 0.92f, stiffness = 480f),
+                        label = "dock_lens_visibility"
+                    )
+                    val animatedLensX by animateFloatAsState(
                         targetValue = dockLensX,
-                        animationSpec = spring(dampingRatio = 0.78f, stiffness = 1050f),
+                        animationSpec = spring(dampingRatio = 0.86f, stiffness = 620f),
                         label = "dock_lens_follow"
                     )
+                    val lensDisplayX = when {
+                        !dockLensActive -> dockLensExitX
+                        dockLensStartX >= 0f -> dockLensStartX
+                        else -> animatedLensX
+                    }
                     val elasticStretch by animateFloatAsState(
                         targetValue = dockLensStretch,
-                        animationSpec = spring(dampingRatio = 0.52f, stiffness = 520f),
+                        animationSpec = spring(dampingRatio = 0.62f, stiffness = 430f),
                         label = "dock_lens_elasticity"
                     )
+                    val dockPrimary = MaterialTheme.colorScheme.primary
+                    val dockSecondary = MaterialTheme.colorScheme.secondary
+                    val dockTertiary = MaterialTheme.colorScheme.tertiary
                     val dockShape = RoundedCornerShape(24.dp)
+
+                    fun selectedDockIndex(positionX: Float): Int {
+                        return ((positionX - dockFirstItemCenterPx) / dockItemStepPx)
+                            .roundToInt()
+                            .coerceIn(0, safeDockItemCount - 1)
+                    }
 
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .onSizeChanged { dockWidthPx = it.width.toFloat().coerceAtLeast(1f) }
-                            .pointerInput(dockItemCount, dockWidthPx) {
+                            .pointerInput(dockItemCount, dockWidthPx, dockFirstItemCenterPx, dockLastItemCenterPx) {
                                 detectDragGestures(
                                     onDragStart = { position ->
-                                        dockLensX = position.x.coerceIn(0f, dockWidthPx)
+                                        dockLensX = position.x.coerceIn(
+                                            dockFirstItemCenterPx,
+                                            dockLastItemCenterPx
+                                        )
+                                        dockLensStartX = dockLensX
+                                        dockLensExitX = dockLensX
+                                        dockLensActive = true
                                         dockLensStretch = 0f
-                                        dockLensSelectedIndex = (
-                                            dockLensX / dockWidthPx * dockItemCount
-                                        ).toInt().coerceIn(0, (dockItemCount - 1).coerceAtLeast(0))
+                                        dockLensSelectedIndex = selectedDockIndex(dockLensX)
                                     },
                                     onDrag = { change, dragAmount ->
                                         change.consume()
-                                        dockLensX = (dockLensX + dragAmount.x).coerceIn(0f, dockWidthPx)
-                                        dockLensStretch = (abs(dragAmount.x) / 34f).coerceIn(0f, 0.20f)
-                                        dockLensSelectedIndex = (
-                                            dockLensX / dockWidthPx * dockItemCount
-                                        ).toInt().coerceIn(0, (dockItemCount - 1).coerceAtLeast(0))
+                                        dockLensStartX = -1f
+                                        dockLensX = (dockLensX + dragAmount.x).coerceIn(
+                                            dockFirstItemCenterPx,
+                                            dockLastItemCenterPx
+                                        )
+                                        dockLensExitX = dockLensX
+                                        dockLensStretch = (abs(dragAmount.x) / 44f).coerceIn(0f, 0.16f)
+                                        dockLensSelectedIndex = selectedDockIndex(dockLensX)
                                     },
                                     onDragEnd = {
                                         val selectedIndex = dockLensSelectedIndex
@@ -521,13 +565,17 @@ fun HomeScreen(
                                         ) {
                                             onOpenDrawer()
                                         }
+                                        dockLensExitX = dockLensX
+                                        dockLensStartX = -1f
+                                        dockLensActive = false
                                         dockLensX = -1f
-                                        dockLensSelectedIndex = -1
                                         dockLensStretch = 0f
                                     },
                                     onDragCancel = {
+                                        dockLensExitX = dockLensX
+                                        dockLensStartX = -1f
+                                        dockLensActive = false
                                         dockLensX = -1f
-                                        dockLensSelectedIndex = -1
                                         dockLensStretch = 0f
                                     }
                                 )
@@ -542,9 +590,9 @@ fun HomeScreen(
                                 .background(
                                     Brush.linearGradient(
                                         listOf(
-                                            Color.White.copy(alpha = 0.34f),
-                                            Color(0xFFDCEBFF).copy(alpha = 0.17f),
-                                            Color(0xFF91B8E8).copy(alpha = 0.12f)
+                                            MaterialTheme.colorScheme.surface.copy(alpha = 0.42f),
+                                            dockPrimary.copy(alpha = 0.12f),
+                                            dockSecondary.copy(alpha = 0.09f)
                                         )
                                     )
                                 )
@@ -552,10 +600,10 @@ fun HomeScreen(
                                     1.dp,
                                     Brush.linearGradient(
                                         listOf(
-                                            Color.White.copy(alpha = 0.88f),
-                                            Color.White.copy(alpha = 0.18f),
-                                            Color(0xFFB8D9FF).copy(alpha = 0.58f),
-                                            Color.White.copy(alpha = 0.34f)
+                                            Color.White.copy(alpha = 0.82f),
+                                            dockPrimary.copy(alpha = 0.34f),
+                                            dockSecondary.copy(alpha = 0.24f),
+                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.24f)
                                         )
                                     ),
                                     dockShape
@@ -600,19 +648,20 @@ fun HomeScreen(
                                         val resolved = installedAppsByComponent[
                                             "${shortcut.packageName}/${shortcut.activityName}"
                                         ]
-                                        val itemCenter = (index + 0.5f) * dockWidthPx / dockItemCount.coerceAtLeast(1)
-                                        val lensInfluence = if (dockLensX >= 0f) {
-                                            (1f - abs(dockLensX - itemCenter) / (dockWidthPx / dockItemCount.coerceAtLeast(1) * 1.65f))
-                                                .coerceIn(0f, 1f)
-                                        } else 0f
+                                        val itemCenter = dockFirstItemCenterPx + index * dockItemStepPx
+                                        val linearInfluence = (
+                                            1f - abs(lensDisplayX - itemCenter) / (dockItemSlotWidthPx * 1.75f)
+                                        ).coerceIn(0f, 1f)
+                                        val lensInfluence = linearInfluence * linearInfluence *
+                                            (3f - 2f * linearInfluence) * dockLensVisibility
                                         Box(
                                             modifier = Modifier
                                                 .weight(1f)
                                                 .graphicsLayer {
-                                                    val magnification = 1f + lensInfluence * 0.16f
+                                                    val magnification = 1f + lensInfluence * 0.15f
                                                     scaleX = magnification
-                                                    scaleY = magnification
-                                                    translationY = -lensInfluence * 3.5.dp.toPx()
+                                                    scaleY = 1f + lensInfluence * 0.14f
+                                                    translationY = -lensInfluence * 4.dp.toPx()
                                                 },
                                             contentAlignment = Alignment.Center
                                         ) {
@@ -636,19 +685,20 @@ fun HomeScreen(
 
                                 if (prefs.showAppDrawerButton) {
                                     val drawerIndex = dockShortcutCount
-                                    val itemCenter = (drawerIndex + 0.5f) * dockWidthPx / dockItemCount.coerceAtLeast(1)
-                                    val lensInfluence = if (dockLensX >= 0f) {
-                                        (1f - abs(dockLensX - itemCenter) / (dockWidthPx / dockItemCount.coerceAtLeast(1) * 1.65f))
-                                            .coerceIn(0f, 1f)
-                                    } else 0f
+                                    val itemCenter = dockFirstItemCenterPx + drawerIndex * dockItemStepPx
+                                    val linearInfluence = (
+                                        1f - abs(lensDisplayX - itemCenter) / (dockItemSlotWidthPx * 1.75f)
+                                    ).coerceIn(0f, 1f)
+                                    val lensInfluence = linearInfluence * linearInfluence *
+                                        (3f - 2f * linearInfluence) * dockLensVisibility
                                     Box(
                                         modifier = Modifier
                                             .weight(1f)
                                             .graphicsLayer {
-                                                val magnification = 1f + lensInfluence * 0.22f
+                                                val magnification = 1f + lensInfluence * 0.19f
                                                 scaleX = magnification
-                                                scaleY = magnification
-                                                translationY = -lensInfluence * 5.dp.toPx()
+                                                scaleY = 1f + lensInfluence * 0.17f
+                                                translationY = -lensInfluence * 4.5.dp.toPx()
                                             },
                                         contentAlignment = Alignment.Center
                                     ) {
@@ -696,7 +746,7 @@ fun HomeScreen(
                             )
                         }
 
-                        if (dockLensX >= 0f && dockLensSelectedIndex >= 0) {
+                        if (dockLensVisibility > 0.01f && dockLensSelectedIndex >= 0) {
                             val selectedShortcut = uiState.dockApps.getOrNull(dockLensSelectedIndex)
                                 .takeIf { dockLensSelectedIndex < dockShortcutCount }
                             val selectedApp = selectedShortcut?.let { shortcut ->
@@ -716,17 +766,18 @@ fun HomeScreen(
                                         val maxOffset = (dockWidthPx.roundToInt() - radiusPx * 2)
                                             .coerceAtLeast(0)
                                         IntOffset(
-                                            (smoothLensX.roundToInt() - radiusPx).coerceIn(0, maxOffset),
+                                            (lensDisplayX.roundToInt() - radiusPx).coerceIn(0, maxOffset),
                                             0
                                         )
                                     }
                                     .size(lensSize)
                                     .graphicsLayer {
-                                        val stretch = elasticStretch.coerceIn(0f, 0.20f)
-                                        scaleX = 1.08f + stretch
-                                        scaleY = 1.08f - stretch * 0.34f
-                                        rotationZ = if (dockLensX >= 0f) {
-                                            ((dockLensX - smoothLensX) / 18f).coerceIn(-3f, 3f)
+                                        alpha = dockLensVisibility
+                                        val stretch = elasticStretch.coerceIn(0f, 0.16f)
+                                        scaleX = 1.045f + stretch * 0.72f
+                                        scaleY = 1.045f - stretch * 0.26f
+                                        rotationZ = if (dockLensActive) {
+                                            ((dockLensX - animatedLensX) / 22f).coerceIn(-4f, 4f)
                                         } else 0f
                                     }
                                     .shadow(16.dp, RoundedCornerShape(22.dp))
@@ -734,10 +785,11 @@ fun HomeScreen(
                                     .background(
                                         Brush.radialGradient(
                                             colors = listOf(
-                                                Color.White.copy(alpha = 0.70f),
-                                                Color(0xFFE5F2FF).copy(alpha = 0.38f),
-                                                Color(0xFF8FC2F5).copy(alpha = 0.22f),
-                                                Color.White.copy(alpha = 0.12f)
+                                                Color.White.copy(alpha = 0.72f),
+                                                dockPrimary.copy(alpha = 0.34f),
+                                                dockSecondary.copy(alpha = 0.25f),
+                                                dockTertiary.copy(alpha = 0.13f),
+                                                Color.White.copy(alpha = 0.09f)
                                             )
                                         )
                                     )
@@ -747,8 +799,8 @@ fun HomeScreen(
                                             listOf(
                                                 Color.White.copy(alpha = 0.98f),
                                                 Color.White.copy(alpha = 0.30f),
-                                                Color(0xFFB8D9FF).copy(alpha = 0.82f),
-                                                Color.White.copy(alpha = 0.60f)
+                                                dockPrimary.copy(alpha = 0.72f),
+                                                dockSecondary.copy(alpha = 0.36f)
                                             )
                                         ),
                                         RoundedCornerShape(22.dp)
@@ -767,7 +819,7 @@ fun HomeScreen(
                                                 listOf(
                                                     Color.White.copy(alpha = 0.72f),
                                                     Color.Transparent,
-                                                    Color(0xFF9CCBFA).copy(alpha = 0.48f)
+                                                    dockTertiary.copy(alpha = 0.32f)
                                                 )
                                             ),
                                             RoundedCornerShape(25.dp)
@@ -809,7 +861,7 @@ fun HomeScreen(
                                         .padding(end = 9.dp, bottom = 10.dp)
                                         .size(width = 20.dp, height = 4.dp)
                                         .clip(CircleShape)
-                                        .background(Color.White.copy(alpha = 0.34f))
+                                        .background(dockSecondary.copy(alpha = 0.30f))
                                 )
                             }
                         }

@@ -1,5 +1,11 @@
 # Changelog — H P i O
 
+## [1.1.9] - 2026-11-23
+### Changed
+- Pisahkan slider blur wallpaper dari pengaturan material Liquid Glass; tingkat blur kaca tidak lagi dapat diubah pengguna.
+- Haluskan gerak lensa dock dengan spring yang lebih terkontrol, magnifikasi ikon kontinu, dan transisi masuk/keluar yang memudar.
+- Sesuaikan pantulan warna dock dengan palet material tema agar tidak lagi terpaku pada gradasi biru statis.
+
 ## [1.0.0] - 2026-11-20
 ### Added
 - Inisialisasi aplikasi Android Native Home Launcher **H P i O** dengan package `dev.andikune.launcherhpio`.
