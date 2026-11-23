@@ -1,5 +1,10 @@
 # Changelog — H P i O
 
+## [1.1.10] - 2026-11-23
+### Fixed
+- Perbaiki identitas versi rilis agar tidak memakai ulang tag v1.1.9 yang sudah terbit.
+- Sertakan koreksi scope coroutine pada animasi lensa dock.
+
 ## [1.1.9] - 2026-11-23
 ### Changed
 - Pisahkan slider blur wallpaper dari pengaturan material Liquid Glass; tingkat blur kaca tidak lagi dapat diubah pengguna.
@@ -15,4 +20,4 @@
 - Control Center Liquid Glass terintegrasi dengan API resmi Android (Wi-Fi panel, Bluetooth, Senter, Kecerahan, Volume Media/Dering, Default Launcher).
 - Personalisasi tampilan (Light/Dark/System, wallpaper + Photo Picker, transparansi, blur, grid, ukuran ikon, animasi, gestur).
 - Lima kapabilitas wajib AI Rulebook V3: Permission Management, Helper Separation, Crash Recovery (`Salin Log` / `Kembali`), GitHub Release Updater (`Skip` / `Nanti` / `Update`), dan Structured Private Storage (`H P i O/Pembaruan Aplikasi/` & `H P i O/Log Crash/`).
-- Pipeline GitHub Actions (`build-release.yml`) dengan validasi paket, lint, unit test, signing `ANDIKUNE_*`, verifikasi sertifikat/signature, publikasi release, dan cleanup 3 artifact terbaru.
+- Pipeline GitHub Actions (`build-release.yml`) dengan validasi paket, lint, unit test, signing `ANDIKUNE_*`, verifikasi sertifikat/signature, publikasi release, dan cleanup 3 artifact.
