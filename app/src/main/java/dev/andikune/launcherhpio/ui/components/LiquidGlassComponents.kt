@@ -35,6 +35,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -188,11 +189,17 @@ fun liquidGlassPanelModifier(
         }
     )
 
+    // Keep the drop shadow outside the rounded clipping layer. The explicit
+    // graphics layer makes every translucent fill/highlight share one
+    // anti-aliased outline, avoiding square corners and mismatched edge pixels.
     return Modifier
-        .shadow(if (dark) 12.dp else 10.dp, shape, clip = false)
-        .clip(shape)
+        .shadow(if (dark) 10.dp else 8.dp, shape, clip = false)
+        .graphicsLayer {
+            this.shape = shape
+            clip = true
+        }
         .background(fill, shape)
-        .border(1.dp, edge, shape)
+        .border(0.8.dp, edge, shape)
 }
 @Composable
 fun LiquidGlassSurface(
@@ -211,9 +218,13 @@ fun LiquidGlassSurface(
         tonalElevation = 0.dp,
         shadowElevation = 0.dp
     ) {
-        Box {
-            // A faint top reflection gives the surface a glass edge without
-            // turning every component into a bright, raised card.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(shape)
+        ) {
+            // Broad, low-contrast reflections blend into the tint instead of
+            // creating hard rectangular highlight patches at the corners.
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -221,17 +232,38 @@ fun LiquidGlassSurface(
                         Brush.verticalGradient(
                             colors = if (dark) {
                                 listOf(
-                                    Color.White.copy(alpha = 0.15f),
-                                    Color(0xFFB7D5FF).copy(alpha = 0.055f),
+                                    Color.White.copy(alpha = 0.105f),
+                                    Color(0xFFB7D5FF).copy(alpha = 0.035f),
                                     Color.Transparent
                                 )
                             } else {
                                 listOf(
-                                    Color.White.copy(alpha = 0.34f),
-                                    Color(0xFFBBD0EB).copy(alpha = 0.11f),
+                                    Color.White.copy(alpha = 0.22f),
+                                    Color(0xFFBBD0EB).copy(alpha = 0.075f),
                                     Color.Transparent
                                 )
                             }
+                        ),
+                        shape
+                    )
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.radialGradient(
+                            colors = if (dark) {
+                                listOf(
+                                    Color(0xFFB9D5FF).copy(alpha = 0.075f),
+                                    Color.Transparent
+                                )
+                            } else {
+                                listOf(
+                                    Color.White.copy(alpha = 0.16f),
+                                    Color.Transparent
+                                )
+                            },
+                            radius = 520f
                         ),
                         shape
                     )
