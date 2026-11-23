@@ -806,7 +806,6 @@ fun HomeScreen(
                         }
                     }
                 }
-                }
             }
         }
     }
