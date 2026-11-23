@@ -217,7 +217,7 @@ fun PersonalizationScreen(
                         valueRange = 0.15f..0.85f
                     )
                     Text(
-                        text = "Efek optik dan blur material kaca mengikuti konfigurasi tetap H P i O.",
+                        text = "Tint, pantulan, dan tepian material kaca mengikuti tema; slider blur di atas hanya mengatur wallpaper.",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
