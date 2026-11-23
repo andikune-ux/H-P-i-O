@@ -1,5 +1,6 @@
 package dev.andikune.launcherhpio.ui.home
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -76,6 +77,7 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import dev.andikune.launcherhpio.data.launcher.LauncherWidgetHelper
 import dev.andikune.launcherhpio.domain.model.BuiltInWidgetType
 import dev.andikune.launcherhpio.domain.model.HomeGridItem
@@ -470,11 +472,11 @@ fun HomeScreen(
                     val dockItemCount = dockShortcutCount + if (prefs.showAppDrawerButton) 1 else 0
                     var dockWidthPx by remember { mutableFloatStateOf(1f) }
                     var dockLensX by remember { mutableFloatStateOf(-1f) }
-                    var dockLensStartX by remember { mutableFloatStateOf(-1f) }
                     var dockLensExitX by remember { mutableFloatStateOf(-1f) }
                     var dockLensActive by remember { mutableStateOf(false) }
                     var dockLensSelectedIndex by remember { mutableIntStateOf(-1) }
                     var dockLensStretch by remember { mutableFloatStateOf(0f) }
+                    val lensPosition = remember { Animatable(-1f) }
                     val density = LocalDensity.current
                     val dockHorizontalPaddingPx = with(density) { 8.dp.toPx() }
                     val dockItemSpacingPx = with(density) { 2.dp.toPx() }
@@ -493,16 +495,7 @@ fun HomeScreen(
                         animationSpec = spring(dampingRatio = 0.92f, stiffness = 480f),
                         label = "dock_lens_visibility"
                     )
-                    val animatedLensX by animateFloatAsState(
-                        targetValue = dockLensX,
-                        animationSpec = spring(dampingRatio = 0.86f, stiffness = 620f),
-                        label = "dock_lens_follow"
-                    )
-                    val lensDisplayX = when {
-                        !dockLensActive -> dockLensExitX
-                        dockLensStartX >= 0f -> dockLensStartX
-                        else -> animatedLensX
-                    }
+                    val lensDisplayX = if (dockLensActive) lensPosition.value else dockLensExitX
                     val elasticStretch by animateFloatAsState(
                         targetValue = dockLensStretch,
                         animationSpec = spring(dampingRatio = 0.62f, stiffness = 430f),
@@ -530,20 +523,25 @@ fun HomeScreen(
                                             dockFirstItemCenterPx,
                                             dockLastItemCenterPx
                                         )
-                                        dockLensStartX = dockLensX
                                         dockLensExitX = dockLensX
                                         dockLensActive = true
+                                        launch { lensPosition.snapTo(dockLensX) }
                                         dockLensStretch = 0f
                                         dockLensSelectedIndex = selectedDockIndex(dockLensX)
                                     },
                                     onDrag = { change, dragAmount ->
                                         change.consume()
-                                        dockLensStartX = -1f
                                         dockLensX = (dockLensX + dragAmount.x).coerceIn(
                                             dockFirstItemCenterPx,
                                             dockLastItemCenterPx
                                         )
                                         dockLensExitX = dockLensX
+                                        launch {
+                                            lensPosition.animateTo(
+                                                dockLensX,
+                                                animationSpec = spring(dampingRatio = 0.86f, stiffness = 620f)
+                                            )
+                                        }
                                         dockLensStretch = (abs(dragAmount.x) / 44f).coerceIn(0f, 0.16f)
                                         dockLensSelectedIndex = selectedDockIndex(dockLensX)
                                     },
@@ -565,15 +563,15 @@ fun HomeScreen(
                                         ) {
                                             onOpenDrawer()
                                         }
-                                        dockLensExitX = dockLensX
-                                        dockLensStartX = -1f
+                                        dockLensExitX = lensPosition.value
+                                        launch { lensPosition.snapTo(dockLensExitX) }
                                         dockLensActive = false
                                         dockLensX = -1f
                                         dockLensStretch = 0f
                                     },
                                     onDragCancel = {
-                                        dockLensExitX = dockLensX
-                                        dockLensStartX = -1f
+                                        dockLensExitX = lensPosition.value
+                                        launch { lensPosition.snapTo(dockLensExitX) }
                                         dockLensActive = false
                                         dockLensX = -1f
                                         dockLensStretch = 0f
@@ -777,7 +775,7 @@ fun HomeScreen(
                                         scaleX = 1.045f + stretch * 0.72f
                                         scaleY = 1.045f - stretch * 0.26f
                                         rotationZ = if (dockLensActive) {
-                                            ((dockLensX - animatedLensX) / 22f).coerceIn(-4f, 4f)
+                                            ((dockLensX - lensPosition.value) / 22f).coerceIn(-4f, 4f)
                                         } else 0f
                                     }
                                     .shadow(16.dp, RoundedCornerShape(22.dp))
