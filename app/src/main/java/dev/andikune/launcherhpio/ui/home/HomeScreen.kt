@@ -256,30 +256,9 @@ fun HomeScreen(
                     contentPadding = PaddingValues(vertical = 6.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(widgets, key = { it.id }) { widget ->
-                        when (widget) {
-                            is HomeGridItem.BuiltInWidgetItem -> {
-                                BuiltInGlassWidgetCard(
-                                    widgetType = widget.widgetType,
-                                    preferences = prefs,
-                                    controlCenterState = uiState.controlCenterState,
-                                    onUpdateNote = onUpdateQuickNote,
-                                    onRemove = { onRemoveHomeItem(pageIndex, widget.id) }
-                                )
-                            }
-                            is HomeGridItem.SystemWidgetItem -> {
-                                SystemAppWidgetCard(
-                                    appWidgetId = widget.appWidgetId,
-                                    providerLabel = widget.providerLabel,
-                                    widgetHelper = widgetHelper,
-                                    preferences = prefs,
-                                    onRemove = { onRemoveHomeItem(pageIndex, widget.id) }
-                                )
-                            }
-                            else -> Unit
-                        }
-                    }
-
+                    // App shortcuts and folders are the primary home-screen content.
+                    // Widgets stay below the app grid so a page cannot open as a stack
+                    // of full-width cards just because its saved layout lists widgets first.
                     if (gridEntries.isNotEmpty()) {
                         val cols = prefs.homeGridPreset.columns
                         val rows = gridEntries.chunked(cols)
@@ -335,7 +314,35 @@ fun HomeScreen(
                                 }
                             }
                         }
-                    } else if (widgets.isEmpty()) {
+                    }
+
+                    // Widgets remain available and removable, but are secondary
+                    // content placed after shortcuts instead of taking over the first view.
+                    items(widgets, key = { it.id }) { widget ->
+                        when (widget) {
+                            is HomeGridItem.BuiltInWidgetItem -> {
+                                BuiltInGlassWidgetCard(
+                                    widgetType = widget.widgetType,
+                                    preferences = prefs,
+                                    controlCenterState = uiState.controlCenterState,
+                                    onUpdateNote = onUpdateQuickNote,
+                                    onRemove = { onRemoveHomeItem(pageIndex, widget.id) }
+                                )
+                            }
+                            is HomeGridItem.SystemWidgetItem -> {
+                                SystemAppWidgetCard(
+                                    appWidgetId = widget.appWidgetId,
+                                    providerLabel = widget.providerLabel,
+                                    widgetHelper = widgetHelper,
+                                    preferences = prefs,
+                                    onRemove = { onRemoveHomeItem(pageIndex, widget.id) }
+                                )
+                            }
+                            else -> Unit
+                        }
+                    }
+
+                    if (gridEntries.isEmpty() && widgets.isEmpty()) {
                         item {
                             LiquidGlassSurface(
                                 modifier = Modifier.fillMaxWidth(),
