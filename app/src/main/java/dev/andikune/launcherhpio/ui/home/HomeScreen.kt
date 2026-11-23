@@ -1,5 +1,7 @@
 package dev.andikune.launcherhpio.ui.home
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -67,6 +69,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.text.style.TextAlign
+import kotlin.math.abs
 import kotlin.math.roundToInt
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -450,13 +453,25 @@ fun HomeScreen(
                     }
                 }
 
-                // Floating Liquid Glass Dock with a finger-following magnification lens.
+                // Floating Liquid Glass Dock: elastic lens, continuous magnification and layered optical material.
                 if (prefs.showDock || prefs.showAppDrawerButton) {
                     val dockShortcutCount = if (prefs.showDock) uiState.dockApps.size else 0
                     val dockItemCount = dockShortcutCount + if (prefs.showAppDrawerButton) 1 else 0
                     var dockWidthPx by remember { mutableFloatStateOf(1f) }
                     var dockLensX by remember { mutableFloatStateOf(-1f) }
                     var dockLensSelectedIndex by remember { mutableIntStateOf(-1) }
+                    var dockLensStretch by remember { mutableFloatStateOf(0f) }
+                    val smoothLensX by animateFloatAsState(
+                        targetValue = dockLensX,
+                        animationSpec = spring(dampingRatio = 0.78f, stiffness = 1050f),
+                        label = "dock_lens_follow"
+                    )
+                    val elasticStretch by animateFloatAsState(
+                        targetValue = dockLensStretch,
+                        animationSpec = spring(dampingRatio = 0.52f, stiffness = 520f),
+                        label = "dock_lens_elasticity"
+                    )
+                    val dockShape = RoundedCornerShape(30.dp)
 
                     Box(
                         modifier = Modifier
@@ -466,6 +481,7 @@ fun HomeScreen(
                                 detectDragGestures(
                                     onDragStart = { position ->
                                         dockLensX = position.x.coerceIn(0f, dockWidthPx)
+                                        dockLensStretch = 0f
                                         dockLensSelectedIndex = (
                                             dockLensX / dockWidthPx * dockItemCount
                                         ).toInt().coerceIn(0, (dockItemCount - 1).coerceAtLeast(0))
@@ -473,6 +489,7 @@ fun HomeScreen(
                                     onDrag = { change, dragAmount ->
                                         change.consume()
                                         dockLensX = (dockLensX + dragAmount.x).coerceIn(0f, dockWidthPx)
+                                        dockLensStretch = (abs(dragAmount.x) / 34f).coerceIn(0f, 0.20f)
                                         dockLensSelectedIndex = (
                                             dockLensX / dockWidthPx * dockItemCount
                                         ).toInt().coerceIn(0, (dockItemCount - 1).coerceAtLeast(0))
@@ -497,35 +514,97 @@ fun HomeScreen(
                                         }
                                         dockLensX = -1f
                                         dockLensSelectedIndex = -1
+                                        dockLensStretch = 0f
                                     },
                                     onDragCancel = {
                                         dockLensX = -1f
                                         dockLensSelectedIndex = -1
+                                        dockLensStretch = 0f
                                     }
                                 )
                             }
                             .testTag("home_dock_bar")
                     ) {
-                        LiquidGlassSurface(
-                            modifier = Modifier.fillMaxWidth(),
-                            preferences = prefs,
-                            cornerRadius = 30.dp,
-                            alphaBoost = 0.12f
+                        // The dock is built from several translucent optical layers instead of a flat blur card.
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(dockShape)
+                                .background(
+                                    Brush.linearGradient(
+                                        listOf(
+                                            Color.White.copy(alpha = 0.34f),
+                                            Color(0xFFDCEBFF).copy(alpha = 0.17f),
+                                            Color(0xFF91B8E8).copy(alpha = 0.12f)
+                                        )
+                                    )
+                                )
+                                .border(
+                                    1.dp,
+                                    Brush.linearGradient(
+                                        listOf(
+                                            Color.White.copy(alpha = 0.88f),
+                                            Color.White.copy(alpha = 0.18f),
+                                            Color(0xFFB8D9FF).copy(alpha = 0.58f),
+                                            Color.White.copy(alpha = 0.34f)
+                                        )
+                                    ),
+                                    dockShape
+                                )
                         ) {
+                            Box(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(24.dp)
+                                    .align(Alignment.TopCenter)
+                                    .background(
+                                        Brush.verticalGradient(
+                                            listOf(Color.White.copy(alpha = 0.30f), Color.Transparent)
+                                        )
+                                    )
+                            )
+                            Box(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(1.dp)
+                                    .align(Alignment.TopCenter)
+                                    .background(
+                                        Brush.horizontalGradient(
+                                            listOf(
+                                                Color.Transparent,
+                                                Color.White.copy(alpha = 0.86f),
+                                                Color.White.copy(alpha = 0.30f),
+                                                Color.Transparent
+                                            )
+                                        )
+                                    )
+                            )
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 8.dp, vertical = 10.dp),
+                                    .padding(horizontal = 8.dp, vertical = 9.dp),
                                 horizontalArrangement = Arrangement.spacedBy(2.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 if (prefs.showDock) {
-                                    uiState.dockApps.forEach { shortcut ->
+                                    uiState.dockApps.forEachIndexed { index, shortcut ->
                                         val resolved = installedAppsByComponent[
                                             "${shortcut.packageName}/${shortcut.activityName}"
                                         ]
+                                        val itemCenter = (index + 0.5f) * dockWidthPx / dockItemCount.coerceAtLeast(1)
+                                        val lensInfluence = if (dockLensX >= 0f) {
+                                            (1f - abs(dockLensX - itemCenter) / (dockWidthPx / dockItemCount.coerceAtLeast(1) * 1.65f))
+                                                .coerceIn(0f, 1f)
+                                        } else 0f
                                         Box(
-                                            modifier = Modifier.weight(1f),
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .graphicsLayer {
+                                                    val magnification = 1f + lensInfluence * 0.22f
+                                                    scaleX = magnification
+                                                    scaleY = magnification
+                                                    translationY = -lensInfluence * 5.dp.toPx()
+                                                },
                                             contentAlignment = Alignment.Center
                                         ) {
                                             GlassAppIconTile(
@@ -547,18 +626,38 @@ fun HomeScreen(
                                 }
 
                                 if (prefs.showAppDrawerButton) {
+                                    val drawerIndex = dockShortcutCount
+                                    val itemCenter = (drawerIndex + 0.5f) * dockWidthPx / dockItemCount.coerceAtLeast(1)
+                                    val lensInfluence = if (dockLensX >= 0f) {
+                                        (1f - abs(dockLensX - itemCenter) / (dockWidthPx / dockItemCount.coerceAtLeast(1) * 1.65f))
+                                            .coerceIn(0f, 1f)
+                                    } else 0f
                                     Box(
-                                        modifier = Modifier.weight(1f),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .graphicsLayer {
+                                                val magnification = 1f + lensInfluence * 0.22f
+                                                scaleX = magnification
+                                                scaleY = magnification
+                                                translationY = -lensInfluence * 5.dp.toPx()
+                                            },
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Box(
                                             modifier = Modifier
                                                 .size(50.dp)
                                                 .clip(RoundedCornerShape(16.dp))
-                                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.22f))
+                                                .background(
+                                                    Brush.linearGradient(
+                                                        listOf(
+                                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.30f),
+                                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                                        )
+                                                    )
+                                                )
                                                 .border(
                                                     1.dp,
-                                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
+                                                    Color.White.copy(alpha = 0.48f),
                                                     RoundedCornerShape(16.dp)
                                                 )
                                                 .clickable(onClick = onOpenDrawer)
@@ -575,6 +674,17 @@ fun HomeScreen(
                                     }
                                 }
                             }
+                            Box(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(5.dp)
+                                    .align(Alignment.BottomCenter)
+                                    .background(
+                                        Brush.verticalGradient(
+                                            listOf(Color.Transparent, Color.White.copy(alpha = 0.22f))
+                                        )
+                                    )
+                            )
                         }
 
                         if (dockLensX >= 0f && dockLensSelectedIndex >= 0) {
@@ -587,75 +697,115 @@ fun HomeScreen(
                             }
                             val isDrawerLens = prefs.showAppDrawerButton &&
                                 dockLensSelectedIndex == dockShortcutCount
+                            val lensSize = 82.dp
 
                             Box(
                                 modifier = Modifier
                                     .align(Alignment.CenterStart)
                                     .offset {
-                                        val radiusPx = 36.dp.roundToPx()
+                                        val radiusPx = lensSize.roundToPx() / 2
                                         val maxOffset = (dockWidthPx.roundToInt() - radiusPx * 2)
                                             .coerceAtLeast(0)
                                         IntOffset(
-                                            (dockLensX.roundToInt() - radiusPx).coerceIn(0, maxOffset),
+                                            (smoothLensX.roundToInt() - radiusPx).coerceIn(0, maxOffset),
                                             0
                                         )
                                     }
-                                    .size(72.dp)
-                                    .shadow(14.dp, CircleShape)
+                                    .size(lensSize)
                                     .graphicsLayer {
-                                        scaleX = 1.08f
-                                        scaleY = 1.08f
+                                        val stretch = elasticStretch.coerceIn(0f, 0.20f)
+                                        scaleX = 1.08f + stretch
+                                        scaleY = 1.08f - stretch * 0.34f
+                                        rotationZ = if (dockLensX >= 0f) {
+                                            ((dockLensX - smoothLensX) / 18f).coerceIn(-3f, 3f)
+                                        } else 0f
                                     }
-                                    .clip(CircleShape)
+                                    .shadow(24.dp, RoundedCornerShape(28.dp))
+                                    .clip(RoundedCornerShape(28.dp))
                                     .background(
                                         Brush.radialGradient(
                                             colors = listOf(
-                                                Color.White.copy(alpha = 0.62f),
-                                                Color(0xFFB9D9FF).copy(alpha = 0.25f),
+                                                Color.White.copy(alpha = 0.70f),
+                                                Color(0xFFE5F2FF).copy(alpha = 0.38f),
+                                                Color(0xFF8FC2F5).copy(alpha = 0.22f),
                                                 Color.White.copy(alpha = 0.12f)
                                             )
                                         )
                                     )
                                     .border(
-                                        1.25.dp,
+                                        1.5.dp,
                                         Brush.linearGradient(
                                             listOf(
-                                                Color.White.copy(alpha = 0.95f),
-                                                Color.White.copy(alpha = 0.24f),
-                                                Color(0xFFB8D9FF).copy(alpha = 0.72f)
+                                                Color.White.copy(alpha = 0.98f),
+                                                Color.White.copy(alpha = 0.30f),
+                                                Color(0xFFB8D9FF).copy(alpha = 0.82f),
+                                                Color.White.copy(alpha = 0.60f)
                                             )
                                         ),
-                                        CircleShape
+                                        RoundedCornerShape(28.dp)
                                     ),
                                 contentAlignment = Alignment.Center
                             ) {
+                                // Inner lens depth and subtle chromatic edge.
+                                Box(
+                                    Modifier
+                                        .fillMaxSize()
+                                        .padding(3.dp)
+                                        .clip(RoundedCornerShape(25.dp))
+                                        .border(
+                                            0.8.dp,
+                                            Brush.verticalGradient(
+                                                listOf(
+                                                    Color.White.copy(alpha = 0.72f),
+                                                    Color.Transparent,
+                                                    Color(0xFF9CCBFA).copy(alpha = 0.48f)
+                                                )
+                                            ),
+                                            RoundedCornerShape(25.dp)
+                                        )
+                                )
                                 if (selectedApp?.icon != null) {
                                     Image(
                                         bitmap = selectedApp.icon,
                                         contentDescription = selectedApp.label,
                                         contentScale = ContentScale.Crop,
                                         modifier = Modifier
-                                            .size(52.dp)
-                                            .clip(RoundedCornerShape(15.dp))
-                                    )
-                                } else if (isDrawerLens) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Apps,
-                                        contentDescription = "Laci Aplikasi",
-                                        tint = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.size(38.dp)
+                                            .size(60.dp)
+                                            .graphicsLayer {
+                                                scaleX = 1.035f
+                                                scaleY = 1.035f
+                                            }
+                                            .clip(RoundedCornerShape(18.dp))
                                     )
                                 } else {
                                     Icon(
                                         imageVector = Icons.Rounded.Apps,
-                                        contentDescription = selectedShortcut?.fallbackLabel,
+                                        contentDescription = if (isDrawerLens) "Laci Aplikasi" else selectedShortcut?.fallbackLabel,
                                         tint = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.size(38.dp)
+                                        modifier = Modifier.size(42.dp)
                                     )
                                 }
+                                // Curved specular highlight, with a secondary lower reflection.
+                                Box(
+                                    Modifier
+                                        .align(Alignment.TopCenter)
+                                        .padding(top = 5.dp)
+                                        .size(width = 48.dp, height = 7.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.White.copy(alpha = 0.74f))
+                                )
+                                Box(
+                                    Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .padding(end = 9.dp, bottom = 10.dp)
+                                        .size(width = 20.dp, height = 4.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.White.copy(alpha = 0.34f))
+                                )
                             }
                         }
                     }
+                }
                 }
             }
         }
