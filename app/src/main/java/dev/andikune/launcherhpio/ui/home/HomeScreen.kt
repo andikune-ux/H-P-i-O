@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -243,14 +244,14 @@ fun HomeScreen(
                     .padding(vertical = 8.dp)
             ) { pageIndex ->
                 val pageData = pages.getOrNull(pageIndex)
-                val items = pageData?.items.orEmpty()
+                val pageItems = pageData?.items.orEmpty()
                 val cols = prefs.homeGridPreset.columns.coerceIn(1, 6)
                 // Keep the user's saved item order. Consecutive app/folder entries
                 // share grid rows; a widget closes the current row and stays exactly
                 // where it was placed instead of being moved to the bottom.
                 val contentSegments = mutableListOf<List<HomeGridItem>>()
                 val pendingApps = mutableListOf<HomeGridItem>()
-                items.forEach { entry ->
+                pageItems.forEach { entry ->
                     if (entry is HomeGridItem.AppShortcut || entry is HomeGridItem.FolderItem) {
                         pendingApps += entry
                     } else {
@@ -325,7 +326,7 @@ fun HomeScreen(
                                     controlCenterState = uiState.controlCenterState,
                                     onUpdateNote = onUpdateQuickNote,
                                     onRemove = { onRemoveHomeItem(pageIndex, first.id) },
-                                    modifier = Modifier.fillMaxWidth().widthIn(max = 560.dp)
+                                    modifier = Modifier.fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = 560.dp)
                                 )
                             }
                             is HomeGridItem.SystemWidgetItem -> {
@@ -342,7 +343,7 @@ fun HomeScreen(
                         }
                     }
 
-                    if (items.isEmpty()) {
+                    if (pageItems.isEmpty()) {
                         item(key = "empty_home_page") {
                             LiquidGlassSurface(
                                 modifier = Modifier.fillMaxWidth(),
