@@ -157,34 +157,38 @@ fun liquidGlassPanelModifier(
     val fill = if (dark) {
         Brush.linearGradient(
             colors = listOf(
-                Color(0xFF52617D).copy(alpha = (alpha * 0.54f).coerceAtMost(0.48f)),
-                Color(0xFF18243B).copy(alpha = (alpha + 0.10f).coerceAtMost(0.72f)),
-                Color(0xFF0A1325).copy(alpha = (alpha + 0.16f).coerceAtMost(0.82f))
+                Color(0xFFB9D9FF).copy(alpha = (alpha * 0.34f).coerceAtMost(0.30f)),
+                Color(0xFF526B91).copy(alpha = (alpha * 0.62f).coerceAtMost(0.52f)),
+                Color(0xFF18243B).copy(alpha = (alpha + 0.08f).coerceAtMost(0.68f)),
+                Color(0xFF0A1325).copy(alpha = (alpha + 0.12f).coerceAtMost(0.78f))
             )
         )
     } else {
         Brush.linearGradient(
             colors = listOf(
-                Color.White.copy(alpha = (alpha + 0.18f).coerceAtMost(0.76f)),
-                Color(0xFFF5F9FF).copy(alpha = (alpha + 0.12f).coerceAtMost(0.72f)),
-                Color(0xFFDCE8F8).copy(alpha = (alpha + 0.08f).coerceAtMost(0.66f))
+                Color.White.copy(alpha = (alpha + 0.12f).coerceAtMost(0.68f)),
+                Color(0xFFEAF4FF).copy(alpha = (alpha + 0.10f).coerceAtMost(0.66f)),
+                Color(0xFFC7DDF7).copy(alpha = (alpha + 0.06f).coerceAtMost(0.60f)),
+                Color(0xFF9BBCE5).copy(alpha = (alpha * 0.34f).coerceAtMost(0.30f))
             )
         )
     }
     val edge = Brush.linearGradient(
         colors = if (dark) {
             listOf(
-                Color.White.copy(alpha = 0.42f),
-                Color(0xFFB7D5FF).copy(alpha = 0.20f),
-                Color.White.copy(alpha = 0.07f),
-                Color(0xFF9CBFFF).copy(alpha = 0.18f)
+                Color.White.copy(alpha = 0.56f),
+                Color(0xFFB7D5FF).copy(alpha = 0.32f),
+                Color(0xFF8EC5FF).copy(alpha = 0.14f),
+                Color.White.copy(alpha = 0.055f),
+                Color(0xFFBDA9FF).copy(alpha = 0.12f)
             )
         } else {
             listOf(
-                Color.White.copy(alpha = 0.94f),
-                Color(0xFFBBD0EB).copy(alpha = 0.48f),
-                Color.White.copy(alpha = 0.34f),
-                Color(0xFF8FAED8).copy(alpha = 0.34f)
+                Color.White.copy(alpha = 0.98f),
+                Color(0xFFBBDFFF).copy(alpha = 0.58f),
+                Color(0xFFA9C7F2).copy(alpha = 0.34f),
+                Color(0xFFD9C9FF).copy(alpha = 0.20f),
+                Color(0xFF8FAED8).copy(alpha = 0.40f)
             )
         }
     )
@@ -232,14 +236,16 @@ fun LiquidGlassSurface(
                         Brush.verticalGradient(
                             colors = if (dark) {
                                 listOf(
-                                    Color.White.copy(alpha = 0.105f),
-                                    Color(0xFFB7D5FF).copy(alpha = 0.035f),
+                                    Color.White.copy(alpha = 0.13f),
+                                    Color(0xFFB7D5FF).copy(alpha = 0.055f),
+                                    Color(0xFF8CB8F2).copy(alpha = 0.018f),
                                     Color.Transparent
                                 )
                             } else {
                                 listOf(
-                                    Color.White.copy(alpha = 0.22f),
-                                    Color(0xFFBBD0EB).copy(alpha = 0.075f),
+                                    Color.White.copy(alpha = 0.24f),
+                                    Color(0xFFBBDFFF).copy(alpha = 0.095f),
+                                    Color(0xFFD7C9FF).copy(alpha = 0.028f),
                                     Color.Transparent
                                 )
                             }
