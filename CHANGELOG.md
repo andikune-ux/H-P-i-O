@@ -1,5 +1,11 @@
 # Changelog — H P i O
 
+## [1.1.11] - 2026-11-24
+### Changed
+- Dock lens follows drag position directly, removing delayed per-event spring movement and abrupt icon overlay switching.
+- Increased continuous dock icon magnification and refined glass tint, edge color dispersion and specular highlights.
+- Kept Android minimum SDK and package identity unchanged.
+
 ## [1.1.10] - 2026-11-23
 ### Fixed
 - Perbaiki identitas versi rilis agar tidak memakai ulang tag v1.1.9 yang sudah terbit.
