@@ -1,6 +1,5 @@
 package dev.andikune.launcherhpio.ui.home
 
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -78,7 +77,6 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.launch
 import dev.andikune.launcherhpio.data.launcher.LauncherWidgetHelper
 import dev.andikune.launcherhpio.domain.model.BuiltInWidgetType
 import dev.andikune.launcherhpio.domain.model.HomeGridItem
@@ -477,8 +475,6 @@ fun HomeScreen(
                     var dockLensActive by remember { mutableStateOf(false) }
                     var dockLensSelectedIndex by remember { mutableIntStateOf(-1) }
                     var dockLensStretch by remember { mutableFloatStateOf(0f) }
-                    val lensPosition = remember { Animatable(-1f) }
-                    val dockAnimationScope = rememberCoroutineScope()
                     val density = LocalDensity.current
                     val dockHorizontalPaddingPx = with(density) { 8.dp.toPx() }
                     val dockItemSpacingPx = with(density) { 2.dp.toPx() }
@@ -497,7 +493,7 @@ fun HomeScreen(
                         animationSpec = spring(dampingRatio = 0.92f, stiffness = 480f),
                         label = "dock_lens_visibility"
                     )
-                    val lensDisplayX = if (dockLensActive) lensPosition.value else dockLensExitX
+                    val lensDisplayX = if (dockLensActive) dockLensX else dockLensExitX
                     val elasticStretch by animateFloatAsState(
                         targetValue = dockLensStretch,
                         animationSpec = spring(dampingRatio = 0.62f, stiffness = 430f),
@@ -527,7 +523,6 @@ fun HomeScreen(
                                         )
                                         dockLensExitX = dockLensX
                                         dockLensActive = true
-                                        dockAnimationScope.launch { lensPosition.snapTo(dockLensX) }
                                         dockLensStretch = 0f
                                         dockLensSelectedIndex = selectedDockIndex(dockLensX)
                                     },
@@ -538,12 +533,6 @@ fun HomeScreen(
                                             dockLastItemCenterPx
                                         )
                                         dockLensExitX = dockLensX
-                                        dockAnimationScope.launch {
-                                            lensPosition.animateTo(
-                                                dockLensX,
-                                                animationSpec = spring(dampingRatio = 0.86f, stiffness = 620f)
-                                            )
-                                        }
                                         dockLensStretch = (abs(dragAmount.x) / 44f).coerceIn(0f, 0.16f)
                                         dockLensSelectedIndex = selectedDockIndex(dockLensX)
                                     },
@@ -565,15 +554,13 @@ fun HomeScreen(
                                         ) {
                                             onOpenDrawer()
                                         }
-                                        dockLensExitX = lensPosition.value
-                                        dockAnimationScope.launch { lensPosition.snapTo(dockLensExitX) }
+                                        dockLensExitX = dockLensX
                                         dockLensActive = false
                                         dockLensX = -1f
                                         dockLensStretch = 0f
                                     },
                                     onDragCancel = {
-                                        dockLensExitX = lensPosition.value
-                                        dockAnimationScope.launch { lensPosition.snapTo(dockLensExitX) }
+                                        dockLensExitX = dockLensX
                                         dockLensActive = false
                                         dockLensX = -1f
                                         dockLensStretch = 0f
@@ -658,10 +645,10 @@ fun HomeScreen(
                                             modifier = Modifier
                                                 .weight(1f)
                                                 .graphicsLayer {
-                                                    val magnification = 1f + lensInfluence * 0.15f
+                                                    val magnification = 1f + lensInfluence * 0.24f
                                                     scaleX = magnification
-                                                    scaleY = 1f + lensInfluence * 0.14f
-                                                    translationY = -lensInfluence * 4.dp.toPx()
+                                                    scaleY = 1f + lensInfluence * 0.21f
+                                                    translationY = -lensInfluence * 5.dp.toPx()
                                                 },
                                             contentAlignment = Alignment.Center
                                         ) {
@@ -695,10 +682,10 @@ fun HomeScreen(
                                         modifier = Modifier
                                             .weight(1f)
                                             .graphicsLayer {
-                                                val magnification = 1f + lensInfluence * 0.19f
+                                                val magnification = 1f + lensInfluence * 0.26f
                                                 scaleX = magnification
-                                                scaleY = 1f + lensInfluence * 0.17f
-                                                translationY = -lensInfluence * 4.5.dp.toPx()
+                                                scaleY = 1f + lensInfluence * 0.23f
+                                                translationY = -lensInfluence * 5.5.dp.toPx()
                                             },
                                         contentAlignment = Alignment.Center
                                     ) {
@@ -746,29 +733,15 @@ fun HomeScreen(
                             )
                         }
 
-                        if (dockLensVisibility > 0.01f && dockLensSelectedIndex >= 0) {
-                            val selectedShortcut = uiState.dockApps.getOrNull(dockLensSelectedIndex)
-                                .takeIf { dockLensSelectedIndex < dockShortcutCount }
-                            val selectedApp = selectedShortcut?.let { shortcut ->
-                                installedAppsByComponent[
-                                    "${shortcut.packageName}/${shortcut.activityName}"
-                                ]
-                            }
-                            val isDrawerLens = prefs.showAppDrawerButton &&
-                                dockLensSelectedIndex == dockShortcutCount
+                        if (dockLensVisibility > 0.01f) {
                             val lensSize = 60.dp
-
                             Box(
                                 modifier = Modifier
                                     .align(Alignment.CenterStart)
                                     .offset {
                                         val radiusPx = lensSize.roundToPx() / 2
-                                        val maxOffset = (dockWidthPx.roundToInt() - radiusPx * 2)
-                                            .coerceAtLeast(0)
-                                        IntOffset(
-                                            (lensDisplayX.roundToInt() - radiusPx).coerceIn(0, maxOffset),
-                                            0
-                                        )
+                                        val maxOffset = (dockWidthPx.roundToInt() - radiusPx * 2).coerceAtLeast(0)
+                                        IntOffset((lensDisplayX.roundToInt() - radiusPx).coerceIn(0, maxOffset), 0)
                                     }
                                     .size(lensSize)
                                     .graphicsLayer {
@@ -776,92 +749,53 @@ fun HomeScreen(
                                         val stretch = elasticStretch.coerceIn(0f, 0.16f)
                                         scaleX = 1.045f + stretch * 0.72f
                                         scaleY = 1.045f - stretch * 0.26f
-                                        rotationZ = if (dockLensActive) {
-                                            ((dockLensX - lensPosition.value) / 22f).coerceIn(-4f, 4f)
-                                        } else 0f
+                                        rotationZ = if (dockLensActive) (dockLensStretch * 18f).coerceIn(-3f, 3f) else 0f
                                     }
-                                    .shadow(16.dp, RoundedCornerShape(22.dp))
+                                    .shadow(18.dp, RoundedCornerShape(22.dp))
                                     .clip(RoundedCornerShape(22.dp))
                                     .background(
                                         Brush.radialGradient(
-                                            colors = listOf(
-                                                Color.White.copy(alpha = 0.72f),
-                                                dockPrimary.copy(alpha = 0.34f),
-                                                dockSecondary.copy(alpha = 0.25f),
-                                                dockTertiary.copy(alpha = 0.13f),
-                                                Color.White.copy(alpha = 0.09f)
+                                            listOf(
+                                                Color.White.copy(alpha = 0.24f),
+                                                dockPrimary.copy(alpha = 0.13f),
+                                                dockSecondary.copy(alpha = 0.10f),
+                                                dockTertiary.copy(alpha = 0.07f),
+                                                Color.White.copy(alpha = 0.025f)
                                             )
                                         )
                                     )
                                     .border(
-                                        1.5.dp,
+                                        1.4.dp,
                                         Brush.linearGradient(
                                             listOf(
-                                                Color.White.copy(alpha = 0.98f),
-                                                Color.White.copy(alpha = 0.30f),
-                                                dockPrimary.copy(alpha = 0.72f),
-                                                dockSecondary.copy(alpha = 0.36f)
+                                                Color.White.copy(alpha = 0.96f),
+                                                dockPrimary.copy(alpha = 0.52f),
+                                                dockSecondary.copy(alpha = 0.40f),
+                                                Color.White.copy(alpha = 0.72f)
                                             )
                                         ),
                                         RoundedCornerShape(22.dp)
                                     ),
                                 contentAlignment = Alignment.Center
                             ) {
-                                // Inner lens depth and subtle chromatic edge.
                                 Box(
-                                    Modifier
-                                        .fillMaxSize()
-                                        .padding(2.dp)
+                                    Modifier.fillMaxSize().padding(2.dp)
                                         .clip(RoundedCornerShape(20.dp))
-                                        .border(
-                                            0.8.dp,
+                                        .background(
                                             Brush.verticalGradient(
-                                                listOf(
-                                                    Color.White.copy(alpha = 0.72f),
-                                                    Color.Transparent,
-                                                    dockTertiary.copy(alpha = 0.32f)
-                                                )
-                                            ),
-                                            RoundedCornerShape(25.dp)
+                                                listOf(Color.White.copy(alpha = 0.20f), Color.Transparent, dockTertiary.copy(alpha = 0.055f))
+                                            )
                                         )
                                 )
-                                if (selectedApp?.icon != null) {
-                                    Image(
-                                        bitmap = selectedApp.icon,
-                                        contentDescription = selectedApp.label,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier
-                                            .size(44.dp)
-                                            .graphicsLayer {
-                                                scaleX = 1.035f
-                                                scaleY = 1.035f
-                                            }
-                                            .clip(RoundedCornerShape(18.dp))
-                                    )
-                                } else {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Apps,
-                                        contentDescription = if (isDrawerLens) "Laci Aplikasi" else selectedShortcut?.fallbackLabel,
-                                        tint = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.size(42.dp)
-                                    )
-                                }
-                                // Curved specular highlight, with a secondary lower reflection.
                                 Box(
-                                    Modifier
-                                        .align(Alignment.TopCenter)
-                                        .padding(top = 5.dp)
-                                        .size(width = 48.dp, height = 7.dp)
-                                        .clip(CircleShape)
-                                        .background(Color.White.copy(alpha = 0.74f))
+                                    Modifier.align(Alignment.TopCenter).padding(top = 5.dp)
+                                        .size(width = 39.dp, height = 5.dp).clip(CircleShape)
+                                        .background(Color.White.copy(alpha = 0.66f))
                                 )
                                 Box(
-                                    Modifier
-                                        .align(Alignment.BottomEnd)
-                                        .padding(end = 9.dp, bottom = 10.dp)
-                                        .size(width = 20.dp, height = 4.dp)
-                                        .clip(CircleShape)
-                                        .background(dockSecondary.copy(alpha = 0.30f))
+                                    Modifier.align(Alignment.BottomEnd).padding(end = 8.dp, bottom = 9.dp)
+                                        .size(width = 17.dp, height = 3.dp).clip(CircleShape)
+                                        .background(dockSecondary.copy(alpha = 0.42f))
                                 )
                             }
                         }
